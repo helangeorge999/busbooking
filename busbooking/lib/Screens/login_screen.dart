@@ -3,6 +3,8 @@ import 'register_screen.dart';
 import 'home_screen.dart';
 
 class LoginScreen extends StatelessWidget {
+  const LoginScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,16 +65,16 @@ class LoginScreen extends StatelessWidget {
                     MaterialPageRoute(builder: (_) => HomeScreen()),
                   );
                 },
-                child: Text(
-                  'Login',
-                  style: TextStyle(color: Colors.white, fontSize: 18),
-                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   padding: EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
+                ),
+                child: Text(
+                  'Login',
+                  style: TextStyle(color: Colors.white, fontSize: 18),
                 ),
               ),
 
@@ -106,16 +108,16 @@ class LoginScreen extends StatelessWidget {
                     MaterialPageRoute(builder: (_) => RegisterScreen()),
                   );
                 },
-                child: Text(
-                  'Create Account',
-                  style: TextStyle(color: Colors.white, fontSize: 18),
-                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   padding: EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
+                ),
+                child: Text(
+                  'Create Account',
+                  style: TextStyle(color: Colors.white, fontSize: 18),
                 ),
               ),
             ],
