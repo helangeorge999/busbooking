@@ -3,6 +3,8 @@ import 'register_screen.dart';
 import 'home_screen.dart';
 
 class LoginScreen extends StatelessWidget {
+  const LoginScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -10,9 +12,10 @@ class LoginScreen extends StatelessWidget {
         child: Padding(
           padding: EdgeInsets.all(20),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              SizedBox(height: 40),
+
               // Login Title
               Text(
                 'Login',
@@ -20,13 +23,12 @@ class LoginScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
 
-              SizedBox(height: 200),
+              SizedBox(height: 40),
 
               // Email / Phone TextField
               TextField(
                 keyboardType: TextInputType.phone,
                 decoration: InputDecoration(
-                  // labelText: "Email or Phone",
                   hintText: 'Enter your Phone number',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -37,6 +39,7 @@ class LoginScreen extends StatelessWidget {
                   ),
                 ),
               ),
+
               SizedBox(height: 20),
 
               // Password TextField
@@ -53,6 +56,7 @@ class LoginScreen extends StatelessWidget {
                   ),
                 ),
               ),
+
               SizedBox(height: 20),
 
               // Login Button
@@ -77,10 +81,11 @@ class LoginScreen extends StatelessWidget {
               ),
 
               SizedBox(height: 10),
+
               // Forgot Password
               TextButton(
                 onPressed: () {
-                  // TODO: Implement forgot password functionality
+                  // TODO: Implement forgot password
                 },
                 child: Text(
                   'Forgot Password?',
@@ -96,9 +101,10 @@ class LoginScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16),
               ),
+
               SizedBox(height: 10),
 
-              // Create Account Button (full width)
+              // Create Account Button
               ElevatedButton(
                 onPressed: () {
                   Navigator.push(

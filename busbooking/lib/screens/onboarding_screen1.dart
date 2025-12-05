@@ -20,7 +20,7 @@ class OnboardingScreen1 extends StatelessWidget {
             SizedBox(height: 40),
             // Description
             Text(
-              'Plan your trips and book bus tickets easily with our app.',
+              'Plan your trips and book bus tickets easily with this app.',
               style: TextStyle(fontSize: 18),
               textAlign: TextAlign.center,
             ),
