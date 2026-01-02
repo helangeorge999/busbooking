@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../../core/constants/app_colors.dart';
+import '../pages/login_page.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -12,6 +13,7 @@ class _SignupPageState extends State<SignupPage> {
   String? selectedGender;
 
   final TextEditingController nameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
   final TextEditingController dobController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -30,6 +32,63 @@ class _SignupPageState extends State<SignupPage> {
       dobController.text =
           "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
     }
+  }
+
+  // SIGNUP LOGIC WITH GMAIL VALIDATION
+  void _onSignup() {
+    if (nameController.text.isEmpty ||
+        emailController.text.isEmpty ||
+        dobController.text.isEmpty ||
+        phoneController.text.isEmpty ||
+        passwordController.text.isEmpty ||
+        confirmPasswordController.text.isEmpty ||
+        selectedGender == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill all fields'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    //  Gmail validation
+    if (!emailController.text.trim().endsWith('@gmail.com')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Email must end with @gmail.com'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (passwordController.text != confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Passwords do not match'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    //  SUCCESS
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Account created successfully'),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    //  Navigate to Login Page
+    Future.delayed(const Duration(seconds: 2), () {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => LoginPage()),
+      );
+    });
   }
 
   @override
@@ -69,6 +128,12 @@ class _SignupPageState extends State<SignupPage> {
                   _genderDropdown(),
 
                   _inputField(
+                    icon: Icons.email_outlined,
+                    hint: 'Gmail ID',
+                    controller: emailController,
+                  ),
+
+                  _inputField(
                     icon: Icons.phone,
                     hint: 'Phone Number',
                     controller: phoneController,
@@ -90,7 +155,7 @@ class _SignupPageState extends State<SignupPage> {
 
                   const SizedBox(height: 25),
 
-                  // 🔹 Sign Up Button
+                  //  SIGN UP BUTTON
                   SizedBox(
                     width: double.infinity,
                     height: 48,
@@ -101,9 +166,7 @@ class _SignupPageState extends State<SignupPage> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      onPressed: () {
-                        // TODO: Hive SignUp Logic
-                      },
+                      onPressed: _onSignup,
                       child: const Text(
                         'Sign Up',
                         style: TextStyle(color: Colors.white),
@@ -143,7 +206,7 @@ class _SignupPageState extends State<SignupPage> {
     );
   }
 
-  // 🔹 Input Field
+  //  Input Field
   Widget _inputField({
     required IconData icon,
     required String hint,
@@ -169,7 +232,7 @@ class _SignupPageState extends State<SignupPage> {
     );
   }
 
-  // 🔹 DOB Field
+  //  DOB Field
   Widget _dobField() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 15),
@@ -191,7 +254,7 @@ class _SignupPageState extends State<SignupPage> {
     );
   }
 
-  // 🔹 Gender Dropdown
+  //  Gender Dropdown
   Widget _genderDropdown() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 15),

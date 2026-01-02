@@ -19,17 +19,17 @@ class SplashPage extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // 🔹 App Title / Logo Placeholder
-                const Icon(
-                  Icons.search,
-                  size: 80,
-                  color: Colors.blue,
-                ),
+                // // 🔹 App Title / Logo Placeholder
+                // const Icon(
+                //   Icons.search,
+                //   size: 80,
+                //   color: Colors.blue,
+                // ),
 
                 const SizedBox(height: 16),
 
                 const Text(
-                  'Lost & Found',
+                  'Login/ Signup',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
