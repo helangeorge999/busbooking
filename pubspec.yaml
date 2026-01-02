@@ -99,8 +99,8 @@ flutter:
         - asset: assets/fonts/Inter-Bold.ttf
           weight: 700
 
-  # Assets
-  assets:
-    - assets/icons/
-    - assets/images/
-    - assets/svg/
+  # # Assets
+  # assets:
+  #   - assets/icons/
+  #   - assets/images/
+  #   - assets/svg/
