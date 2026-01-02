@@ -9,7 +9,10 @@ class HomeScreen extends StatelessWidget {
       backgroundColor: Colors.grey[100], // subtle background color
 
       appBar: AppBar(
-        title: Text('Home'),
+        title: Text(
+          'Home',
+          style: TextStyle(fontFamily: 'OpenSans', fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.black,
@@ -40,12 +43,18 @@ class HomeScreen extends StatelessWidget {
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
+                      fontFamily: 'OpenSans',
                     ),
                   ),
                   SizedBox(height: 8),
                   Text(
                     'Ready to book your next bus trip?',
-                    style: TextStyle(fontSize: 16, color: Colors.white70),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white70,
+                      fontStyle: FontStyle.italic,
+                      fontFamily: 'OpenSans',
+                    ),
                   ),
                 ],
               ),
@@ -86,12 +95,17 @@ class HomeScreen extends StatelessWidget {
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Colors.black87,
+                            fontFamily: 'italic',
                           ),
                         ),
                         SizedBox(height: 4),
                         Text(
                           'Search buses and book tickets quickly',
-                          style: TextStyle(fontSize: 14, color: Colors.black54),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.black54,
+                            fontFamily: 'italic',
+                          ),
                         ),
                       ],
                     ),
@@ -103,7 +117,7 @@ class HomeScreen extends StatelessWidget {
 
             SizedBox(height: 20),
 
-            // Optional: Add another card for history or profile
+            // Booking History Card
             GestureDetector(
               onTap: () {
                 Navigator.push(
@@ -133,6 +147,7 @@ class HomeScreen extends StatelessWidget {
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
+                        fontFamily: 'OpenSans',
                       ),
                     ),
                     Icon(Icons.history, color: Colors.orangeAccent),

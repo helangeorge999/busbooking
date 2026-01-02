@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'booking_provider.dart';
+import '../Providers/booking_provider.dart';
 import 'ticket_confirmation_screen.dart';
 
 class BookingDetailScreen extends ConsumerWidget {

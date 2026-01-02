@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'available_bus_screen.dart';
-import 'search_provider.dart'; // <-- import your provider here
+import '../Providers/search_provider.dart';
 
 class SearchBusScreen extends ConsumerStatefulWidget {
   @override
