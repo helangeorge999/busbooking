@@ -28,7 +28,7 @@ class HomePage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                /// 🔹 Greeting Card
+                ///  Greeting Card
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -43,7 +43,7 @@ class HomePage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Hello, User!',
+                        'Hello, Helan!',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -65,7 +65,7 @@ class HomePage extends StatelessWidget {
 
                 const SizedBox(height: 40),
 
-                /// 🔹 Continue Booking Card
+                // Continue Booking Card
                 _actionCard(
                   title: 'Continue Booking',
                   subtitle: 'Search buses and book tickets quickly',
@@ -80,7 +80,7 @@ class HomePage extends StatelessWidget {
 
                 const SizedBox(height: 20),
 
-                /// 🔹 Booking History Card
+                // Booking History Card
                 _actionCard(
                   title: 'Booking History',
                   trailing: const Icon(
@@ -99,7 +99,7 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  /// 🔹 Reusable Card (UI same)
+  // Reusable Card (UI same)
   static Widget _actionCard({
     required String title,
     String? subtitle,
