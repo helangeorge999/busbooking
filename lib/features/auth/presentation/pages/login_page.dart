@@ -1,13 +1,64 @@
+import 'package:busbooking/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:flutter/material.dart';
 import '../../../../../core/constants/app_colors.dart';
-import 'signup_page.dart';
 import '../pages/home_page.dart';
 
-class LoginPage extends StatelessWidget {
-  LoginPage({super.key});
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
 
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+
+  bool isLoading = false;
+
+  Future<void> handleLogin() async {
+    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter email and password'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    try {
+      final response = await AuthRemoteDataSource().login(
+        emailController.text.trim(),
+        passwordController.text.trim(),
+      );
+
+      // ✅ Login success → go home
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response['message'] ?? 'Login successful'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => HomePage()),
+      );
+    } catch (e) {
+      // ❌ Login failed
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +74,6 @@ class LoginPage extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // 🔹 Title
                 const Text(
                   'Log In',
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
@@ -31,16 +81,14 @@ class LoginPage extends StatelessWidget {
 
                 const SizedBox(height: 40),
 
-                // 🔹 Email / Phone
                 _buildTextField(
                   controller: emailController,
-                  hint: 'Email or Phone Number',
+                  hint: 'Email',
                   icon: Icons.email_outlined,
                 ),
 
                 const SizedBox(height: 15),
 
-                // 🔹 Password
                 _buildTextField(
                   controller: passwordController,
                   hint: 'Password',
@@ -50,7 +98,6 @@ class LoginPage extends StatelessWidget {
 
                 const SizedBox(height: 20),
 
-                // 🔹 Login Button
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -61,62 +108,13 @@ class LoginPage extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    onPressed: () {
-                      if (emailController.text.isEmpty ||
-                          passwordController.text.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Please enter email and password'),
-                            backgroundColor: Colors.red,
+                    onPressed: isLoading ? null : handleLogin,
+                    child: isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            'Login',
+                            style: TextStyle(color: Colors.white),
                           ),
-                        );
-                        return;
-                      }
-
-                      // ✅ Success → Navigate to Home
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => HomePage()),
-                      );
-                    },
-                    child: const Text(
-                      'Login',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // 🔹 Forgot Password
-                TextButton(
-                  onPressed: () {},
-                  child: const Text('Forgot password?'),
-                ),
-
-                const SizedBox(height: 35),
-
-                // 🔹 Create account
-                const Text("Don't have an account?"),
-
-                const SizedBox(height: 10),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const SignupPage()),
-                      );
-                    },
-                    child: const Text('Create account'),
                   ),
                 ),
               ],
@@ -127,7 +125,6 @@ class LoginPage extends StatelessWidget {
     );
   }
 
-  // 🔹 Reusable TextField Widget
   Widget _buildTextField({
     required TextEditingController controller,
     required String hint,
