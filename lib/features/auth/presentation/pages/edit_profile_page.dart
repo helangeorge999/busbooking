@@ -39,9 +39,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
     dobCtrl.text = prefs.getString('user_dob') ?? '';
 
     photoUrl = prefs.getString('photoUrl');
-    userId = prefs.getString(
-      'userId',
-    ); // make sure this is saved during login/signup
+
+    // 🔹 Use consistent key
+    userId = prefs.getString('user_id');
+
     setState(() {});
   }
 
@@ -91,10 +92,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final data = jsonDecode(respStr);
 
       if (response.statusCode == 200 && data['url'] != null) {
-        setState(() => photoUrl = data['url']);
+        // 🔹 Prepend host to relative path
+        final fullUrl = 'http://10.0.2.2:5050/${data['url']}';
+        setState(() => photoUrl = fullUrl);
 
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('photoUrl', photoUrl!);
+        await prefs.setString('photoUrl', fullUrl);
 
         ScaffoldMessenger.of(
           context,

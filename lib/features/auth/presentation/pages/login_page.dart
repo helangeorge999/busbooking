@@ -109,14 +109,15 @@ class LoginPage extends StatelessWidget {
         final prefs = await SharedPreferences.getInstance();
 
         /// 🔹 SAVE USER DATA
+        await prefs.setString('userId', data['user']['id'] ?? '');
         await prefs.setString('user_name', data['user']['name'] ?? '');
         await prefs.setString('user_email', data['user']['email'] ?? '');
         await prefs.setString('user_phone', data['user']['phone'] ?? '');
         await prefs.setString('user_gender', data['user']['gender'] ?? '');
         await prefs.setString('user_dob', data['user']['dob'] ?? '');
-        await prefs.setString('userId', data['user']['id'] ?? '');
         await prefs.setString('photoUrl', data['user']['photoUrl'] ?? '');
 
+        /// 🔹 Navigate to Home Page (or ProfilePage)
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomePage()),

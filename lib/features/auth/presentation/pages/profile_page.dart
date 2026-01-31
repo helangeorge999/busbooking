@@ -20,7 +20,7 @@ class _ProfilePageState extends State<ProfilePage> {
   String phone = '';
   String gender = '';
   String dob = '';
-  String? photoUrl; // will hold server URL or local path
+  String? photoUrl;
 
   @override
   void initState() {
@@ -28,27 +28,38 @@ class _ProfilePageState extends State<ProfilePage> {
     _loadProfile();
   }
 
-  /// 🔹 Load profile from SharedPreferences first
+  /// Load profile from SharedPreferences and backend
   Future<void> _loadProfile() async {
     final prefs = await SharedPreferences.getInstance();
 
+    // Load locally first
     setState(() {
       name = prefs.getString('user_name') ?? '';
       email = prefs.getString('user_email') ?? '';
       phone = prefs.getString('user_phone') ?? '';
       gender = prefs.getString('user_gender') ?? '';
       dob = prefs.getString('user_dob') ?? '';
-      photoUrl = prefs.getString('photoUrl'); // load saved photo URL
+      photoUrl = prefs.getString('photoUrl');
     });
 
-    final userId = prefs.getString('user_id');
-    if (userId != null) {
+    // Load from backend
+    final userId = prefs.getString('userId'); // ✅ Correct key
+    if (userId != null && userId.isNotEmpty) {
       try {
         final res = await http.get(
           Uri.parse("http://10.0.2.2:5050/api/user/profile?userId=$userId"),
         );
+
         if (res.statusCode == 200) {
           final data = jsonDecode(res.body)['data'];
+
+          String? finalPhoto;
+          if (data['photoUrl'] != null && data['photoUrl'].isNotEmpty) {
+            finalPhoto = data['photoUrl'].startsWith('http')
+                ? data['photoUrl']
+                : 'http://10.0.2.2:5050/${data['photoUrl']}';
+          }
+
           setState(() {
             name = data['name'] ?? name;
             email = data['email'] ?? email;
@@ -57,10 +68,10 @@ class _ProfilePageState extends State<ProfilePage> {
             dob = data['dob'] != null
                 ? data['dob'].toString().split('T')[0]
                 : dob;
-            photoUrl = data['photoUrl'] ?? photoUrl;
+            if (finalPhoto != null) photoUrl = finalPhoto;
           });
 
-          // Update SharedPreferences with latest server data
+          // Save updated data locally
           await prefs.setString('user_name', name);
           await prefs.setString('user_email', email);
           await prefs.setString('user_phone', phone);
@@ -68,13 +79,13 @@ class _ProfilePageState extends State<ProfilePage> {
           await prefs.setString('user_dob', dob);
           if (photoUrl != null) await prefs.setString('photoUrl', photoUrl!);
         }
-      } catch (_) {
-        // ignore server error, we already have local data
+      } catch (e) {
+        debugPrint('Error fetching profile: $e');
       }
     }
   }
 
-  /// 🔹 Logout
+  /// Logout
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
@@ -94,16 +105,16 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           const SizedBox(height: 20),
 
-          /// PROFILE PHOTO
+          // Profile photo
           CircleAvatar(
             radius: 55,
             backgroundColor: Colors.grey[300],
-            backgroundImage: photoUrl != null
+            backgroundImage: (photoUrl != null && photoUrl!.isNotEmpty)
                 ? (photoUrl!.startsWith('http')
                       ? NetworkImage(photoUrl!) as ImageProvider
                       : FileImage(File(photoUrl!)))
                 : null,
-            child: photoUrl == null
+            child: (photoUrl == null || photoUrl!.isEmpty)
                 ? const Icon(Icons.camera_alt, size: 30)
                 : null,
           ),
@@ -115,7 +126,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 20),
 
-          /// INFO CARD
+          // Info card
           Expanded(
             child: Container(
               padding: const EdgeInsets.all(20),
@@ -131,7 +142,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   _infoTile(Icons.cake, 'DOB', dob),
                   const SizedBox(height: 30),
 
-                  /// EDIT PROFILE BUTTON
+                  // Edit profile
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
@@ -153,7 +164,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
                   const SizedBox(height: 15),
 
-                  /// LOGOUT BUTTON
+                  // Logout
                   ElevatedButton.icon(
                     onPressed: _logout,
                     icon: const Icon(Icons.logout),

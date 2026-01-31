@@ -51,8 +51,8 @@ class _SignupPageState extends State<SignupPage> {
       return;
     }
 
-    if (!emailController.text.trim().endsWith('@gmail.com')) {
-      _showSnack('Email must end with @gmail.com', Colors.red);
+    if (!emailController.text.contains('@')) {
+      _showSnack('Enter a valid email address', Colors.red);
       return;
     }
 
@@ -78,21 +78,25 @@ class _SignupPageState extends State<SignupPage> {
       );
 
       final data = jsonDecode(response.body);
+      print("Signup response: $data");
 
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        // 🔹 Save user data in SharedPreferences
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_name', data['user']['name'] ?? '');
-        await prefs.setString('user_email', data['user']['email'] ?? '');
-        await prefs.setString('user_phone', data['user']['phone'] ?? '');
-        await prefs.setString('user_gender', data['user']['gender'] ?? '');
-        await prefs.setString('user_dob', data['user']['dob'] ?? '');
-        await prefs.setString('userId', data['user']['id'] ?? '');
-        await prefs.setString('photoUrl', data['user']['photoUrl'] ?? '');
+
+        // ✅ Works whether backend returns `user` or flat object
+        final user = data['user'] ?? data;
+
+        await prefs.setString('user_name', user['name'] ?? '');
+        await prefs.setString('user_email', user['email'] ?? '');
+        await prefs.setString('user_phone', user['phone'] ?? '');
+        await prefs.setString('user_gender', user['gender'] ?? '');
+        await prefs.setString('user_dob', user['dob'] ?? '');
+        await prefs.setString('userId', user['_id'] ?? user['id'] ?? '');
+        await prefs.setString('photoUrl', user['photoUrl'] ?? '');
 
         _showSnack('Account created successfully', Colors.green);
 
-        Future.delayed(const Duration(seconds: 2), () {
+        Future.delayed(const Duration(seconds: 1), () {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => LoginPage()),
@@ -114,7 +118,7 @@ class _SignupPageState extends State<SignupPage> {
     ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
 
-  /// 🔹 UI REMAINS EXACTLY SAME
+  // 🔹 UI REMAINS EXACTLY SAME
   @override
   Widget build(BuildContext context) {
     final bool isTablet = MediaQuery.of(context).size.width > 600;
@@ -144,7 +148,7 @@ class _SignupPageState extends State<SignupPage> {
                   _genderDropdown(),
                   _inputField(
                     icon: Icons.email_outlined,
-                    hint: 'Gmail ID',
+                    hint: 'Email Address',
                     controller: emailController,
                   ),
                   _inputField(
