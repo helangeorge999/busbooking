@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'profile_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -19,11 +20,11 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadFirstName() async {
     final prefs = await SharedPreferences.getInstance();
-    final fullName = prefs.getString('fullName');
+    final fullName = prefs.getString('user_name'); // 🔹 Correct key
 
     setState(() {
       if (fullName != null && fullName.trim().isNotEmpty) {
-        firstName = fullName.trim().split(' ')[0];
+        firstName = fullName.trim(); // 🔹 Show full name now
       } else {
         firstName = 'User';
       }
@@ -44,6 +45,19 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.black,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProfilePage()),
+              ).then(
+                (_) => _loadFirstName(),
+              ); // reload full name after profile edit
+            },
+          ),
+        ],
       ),
       body: Center(
         child: SizedBox(
@@ -53,7 +67,6 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                /// Greeting Card
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -68,7 +81,7 @@ class _HomePageState extends State<HomePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Hello, $firstName!',
+                        'Hello, $firstName!', // 🔹 Full name displayed
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../../core/constants/app_colors.dart';
 import 'login_page.dart';
 
@@ -23,7 +24,6 @@ class _SignupPageState extends State<SignupPage> {
   final TextEditingController confirmPasswordController =
       TextEditingController();
 
-  /// 🔹 BACKEND URL (Android Emulator)
   static const String baseUrl = "http://10.0.2.2:5050/api/auth/register";
 
   Future<void> _selectDOB() async {
@@ -33,14 +33,12 @@ class _SignupPageState extends State<SignupPage> {
       firstDate: DateTime(1950),
       lastDate: DateTime.now(),
     );
-
     if (picked != null) {
       dobController.text =
           "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
     }
   }
 
-  /// ✅ REAL SIGNUP → BACKEND → MONGODB
   Future<void> _onSignup() async {
     if (nameController.text.isEmpty ||
         emailController.text.isEmpty ||
@@ -82,6 +80,16 @@ class _SignupPageState extends State<SignupPage> {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 201 || response.statusCode == 200) {
+        // 🔹 Save user data in SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_name', data['user']['name'] ?? '');
+        await prefs.setString('user_email', data['user']['email'] ?? '');
+        await prefs.setString('user_phone', data['user']['phone'] ?? '');
+        await prefs.setString('user_gender', data['user']['gender'] ?? '');
+        await prefs.setString('user_dob', data['user']['dob'] ?? '');
+        await prefs.setString('userId', data['user']['id'] ?? '');
+        await prefs.setString('photoUrl', data['user']['photoUrl'] ?? '');
+
         _showSnack('Account created successfully', Colors.green);
 
         Future.delayed(const Duration(seconds: 2), () {
@@ -106,6 +114,7 @@ class _SignupPageState extends State<SignupPage> {
     ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
 
+  /// 🔹 UI REMAINS EXACTLY SAME
   @override
   Widget build(BuildContext context) {
     final bool isTablet = MediaQuery.of(context).size.width > 600;
@@ -126,44 +135,36 @@ class _SignupPageState extends State<SignupPage> {
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 30),
-
                   _inputField(
                     icon: Icons.person_outline,
                     hint: 'Enter Your Full Name',
                     controller: nameController,
                   ),
-
                   _dobField(),
                   _genderDropdown(),
-
                   _inputField(
                     icon: Icons.email_outlined,
                     hint: 'Gmail ID',
                     controller: emailController,
                   ),
-
                   _inputField(
                     icon: Icons.phone,
                     hint: 'Phone Number',
                     controller: phoneController,
                   ),
-
                   _inputField(
                     icon: Icons.lock_outline,
                     hint: 'Enter Your Password',
                     controller: passwordController,
                     isPassword: true,
                   ),
-
                   _inputField(
                     icon: Icons.lock_outline,
                     hint: 'Confirm Your Password',
                     controller: confirmPasswordController,
                     isPassword: true,
                   ),
-
                   const SizedBox(height: 25),
-
                   SizedBox(
                     width: double.infinity,
                     height: 48,
@@ -183,11 +184,9 @@ class _SignupPageState extends State<SignupPage> {
                             ),
                     ),
                   ),
-
                   const SizedBox(height: 20),
                   const Text('Already have an account?'),
                   const SizedBox(height: 10),
-
                   SizedBox(
                     width: double.infinity,
                     height: 48,
@@ -196,7 +195,6 @@ class _SignupPageState extends State<SignupPage> {
                       child: const Text('Sign In'),
                     ),
                   ),
-
                   const SizedBox(height: 20),
                 ],
               ),
@@ -207,7 +205,6 @@ class _SignupPageState extends State<SignupPage> {
     );
   }
 
-  /// UI HELPERS
   Widget _inputField({
     required IconData icon,
     required String hint,

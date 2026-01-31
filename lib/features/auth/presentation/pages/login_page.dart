@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../../../../../core/constants/app_colors.dart';
 import '../pages/home_page.dart';
 import 'signup_page.dart';
@@ -33,26 +32,20 @@ class LoginPage extends StatelessWidget {
                   'Log In',
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
                 ),
-
                 const SizedBox(height: 40),
-
                 _buildTextField(
                   controller: emailController,
                   hint: 'Email',
                   icon: Icons.email_outlined,
                 ),
-
                 const SizedBox(height: 15),
-
                 _buildTextField(
                   controller: passwordController,
                   hint: 'Password',
                   icon: Icons.lock_outline,
                   obscure: true,
                 ),
-
                 const SizedBox(height: 20),
-
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -63,22 +56,16 @@ class LoginPage extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    onPressed: () async {
-                      await _login(context);
-                    },
+                    onPressed: () => _login(context),
                     child: const Text(
                       'Login',
                       style: TextStyle(color: Colors.white),
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 35),
-
                 const Text("Don't have an account?"),
-
                 const SizedBox(height: 10),
-
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -100,7 +87,6 @@ class LoginPage extends StatelessWidget {
     );
   }
 
-  /// 🔐 REAL LOGIN FUNCTION
   Future<void> _login(BuildContext context) async {
     if (emailController.text.isEmpty || passwordController.text.isEmpty) {
       _showSnack(context, 'Please enter email and password', Colors.red);
@@ -119,21 +105,31 @@ class LoginPage extends StatelessWidget {
 
       final data = jsonDecode(response.body);
 
-      if (response.statusCode == 200 && data['success'] == true) {
-        // ✅ SAVE FULL NAME HERE
+      if (response.statusCode == 200 && data['user'] != null) {
         final prefs = await SharedPreferences.getInstance();
-        // await prefs.clear();
-        await prefs.setString('fullName', data['user']['name']);
+
+        /// 🔹 SAVE USER DATA
+        await prefs.setString('user_name', data['user']['name'] ?? '');
+        await prefs.setString('user_email', data['user']['email'] ?? '');
+        await prefs.setString('user_phone', data['user']['phone'] ?? '');
+        await prefs.setString('user_gender', data['user']['gender'] ?? '');
+        await prefs.setString('user_dob', data['user']['dob'] ?? '');
+        await prefs.setString('userId', data['user']['id'] ?? '');
+        await prefs.setString('photoUrl', data['user']['photoUrl'] ?? '');
 
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomePage()),
         );
       } else {
-        _showSnack(context, data['message'] ?? 'Login failed', Colors.red);
+        _showSnack(
+          context,
+          data['message'] ?? 'Invalid email or password',
+          Colors.red,
+        );
       }
     } catch (e) {
-      _showSnack(context, 'Server error', Colors.red);
+      _showSnack(context, 'Server error. Check backend.', Colors.red);
     }
   }
 
