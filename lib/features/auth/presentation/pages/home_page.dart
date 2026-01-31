@@ -1,7 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  String firstName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFirstName();
+  }
+
+  Future<void> _loadFirstName() async {
+    final prefs = await SharedPreferences.getInstance();
+    final fullName = prefs.getString('fullName');
+
+    setState(() {
+      if (fullName != null && fullName.trim().isNotEmpty) {
+        firstName = fullName.trim().split(' ')[0];
+      } else {
+        firstName = 'User';
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +53,7 @@ class HomePage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                ///  Greeting Card
+                /// Greeting Card
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -37,19 +64,19 @@ class HomePage extends StatelessWidget {
                     ),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Hello, Helan!',
-                        style: TextStyle(
+                        'Hello, $firstName!',
+                        style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
                       ),
-                      SizedBox(height: 8),
-                      Text(
+                      const SizedBox(height: 8),
+                      const Text(
                         'Ready to book your next bus trip?',
                         style: TextStyle(
                           fontSize: 16,
@@ -63,7 +90,6 @@ class HomePage extends StatelessWidget {
 
                 const SizedBox(height: 40),
 
-                // Continue Booking Card
                 _actionCard(
                   title: 'Continue Booking',
                   subtitle: 'Search buses and book tickets quickly',
@@ -71,23 +97,18 @@ class HomePage extends StatelessWidget {
                     Icons.arrow_forward_ios,
                     color: Colors.blue,
                   ),
-                  onTap: () {
-                    // TODO: Navigate to Search Bus Page
-                  },
+                  onTap: () {},
                 ),
 
                 const SizedBox(height: 20),
 
-                // Booking History Card
                 _actionCard(
                   title: 'Booking History',
                   trailing: const Icon(
                     Icons.history,
                     color: Colors.orangeAccent,
                   ),
-                  onTap: () {
-                    // TODO: Navigate to Booking History Page
-                  },
+                  onTap: () {},
                 ),
               ],
             ),
@@ -97,7 +118,6 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  // Reusable Card (UI same)
   static Widget _actionCard({
     required String title,
     String? subtitle,
@@ -130,15 +150,11 @@ class HomePage extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
                   ),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(fontSize: 14, color: Colors.black54),
-                  ),
+                  Text(subtitle),
                 ],
               ],
             ),

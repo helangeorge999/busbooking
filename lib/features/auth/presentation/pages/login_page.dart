@@ -1,64 +1,19 @@
-import 'package:busbooking/features/auth/data/datasources/auth_remote_data_source.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../../../../core/constants/app_colors.dart';
 import '../pages/home_page.dart';
+import 'signup_page.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class LoginPage extends StatelessWidget {
+  LoginPage({super.key});
 
-  @override
-  State<LoginPage> createState() => _LoginPageState();
-}
-
-class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
-  bool isLoading = false;
-
-  Future<void> handleLogin() async {
-    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter email and password'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    setState(() => isLoading = true);
-
-    try {
-      final response = await AuthRemoteDataSource().login(
-        emailController.text.trim(),
-        passwordController.text.trim(),
-      );
-
-      // ✅ Login success → go home
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(response['message'] ?? 'Login successful'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => HomePage()),
-      );
-    } catch (e) {
-      // ❌ Login failed
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() => isLoading = false);
-    }
-  }
+  static const String loginUrl = "http://10.0.2.2:5050/api/auth/login";
 
   @override
   Widget build(BuildContext context) {
@@ -108,13 +63,33 @@ class _LoginPageState extends State<LoginPage> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    onPressed: isLoading ? null : handleLogin,
-                    child: isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text(
-                            'Login',
-                            style: TextStyle(color: Colors.white),
-                          ),
+                    onPressed: () async {
+                      await _login(context);
+                    },
+                    child: const Text(
+                      'Login',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 35),
+
+                const Text("Don't have an account?"),
+
+                const SizedBox(height: 10),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SignupPage()),
+                      );
+                    },
+                    child: const Text('Create account'),
                   ),
                 ),
               ],
@@ -123,6 +98,49 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
     );
+  }
+
+  /// 🔐 REAL LOGIN FUNCTION
+  Future<void> _login(BuildContext context) async {
+    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
+      _showSnack(context, 'Please enter email and password', Colors.red);
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse(loginUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "email": emailController.text.trim(),
+          "password": passwordController.text.trim(),
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        // ✅ SAVE FULL NAME HERE
+        final prefs = await SharedPreferences.getInstance();
+        // await prefs.clear();
+        await prefs.setString('fullName', data['user']['name']);
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomePage()),
+        );
+      } else {
+        _showSnack(context, data['message'] ?? 'Login failed', Colors.red);
+      }
+    } catch (e) {
+      _showSnack(context, 'Server error', Colors.red);
+    }
+  }
+
+  void _showSnack(BuildContext context, String msg, Color color) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
 
   Widget _buildTextField({
