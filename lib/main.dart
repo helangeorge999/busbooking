@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'features/dashboard/presentation/pages/login_screen.dart';
+import 'features/auth/presentation/pages/splash_page.dart';
 
 void main() {
-  runApp(const BusBookingApp());
+  runApp(const MyApp());
 }
 
-class BusBookingApp extends StatelessWidget {
-  const BusBookingApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -14,11 +14,10 @@ class BusBookingApp extends StatelessWidget {
       title: 'Bus Booking',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primaryColor: const Color(0xFF1565C0),
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1565C0)),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const LoginScreen(),
+      home: const SplashPage(),
     );
   }
 }

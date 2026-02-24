@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'profile_page.dart';
 
+// Import dashboard screens
+import '../../../dashboard/presentation/pages/search_bus_screen.dart';
+import '../../../dashboard/presentation/pages/booking_history_screen.dart';
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -20,11 +24,11 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadFirstName() async {
     final prefs = await SharedPreferences.getInstance();
-    final fullName = prefs.getString('user_name'); // 🔹 Correct key
+    final fullName = prefs.getString('user_name');
 
     setState(() {
       if (fullName != null && fullName.trim().isNotEmpty) {
-        firstName = fullName.trim(); // 🔹 Show full name now
+        firstName = fullName.trim();
       } else {
         firstName = 'User';
       }
@@ -52,9 +56,7 @@ class _HomePageState extends State<HomePage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const ProfilePage()),
-              ).then(
-                (_) => _loadFirstName(),
-              ); // reload full name after profile edit
+              ).then((_) => _loadFirstName());
             },
           ),
         ],
@@ -67,6 +69,7 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // ── Greeting card ──────────────────────────────────────
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -81,7 +84,7 @@ class _HomePageState extends State<HomePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Hello, $firstName!', // 🔹 Full name displayed
+                        'Hello, $firstName!',
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -103,25 +106,42 @@ class _HomePageState extends State<HomePage> {
 
                 const SizedBox(height: 40),
 
+                // ── Book a Ticket ──────────────────────────────────────
                 _actionCard(
-                  title: 'Continue Booking',
+                  title: 'Book a Ticket',
                   subtitle: 'Search buses and book tickets quickly',
                   trailing: const Icon(
-                    Icons.arrow_forward_ios,
+                    Icons.confirmation_number_outlined,
                     color: Colors.blue,
                   ),
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SearchBusScreen(),
+                      ),
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 20),
 
+                // ── Booking History ────────────────────────────────────
                 _actionCard(
                   title: 'Booking History',
+                  subtitle: 'View your past and upcoming trips',
                   trailing: const Icon(
                     Icons.history,
                     color: Colors.orangeAccent,
                   ),
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const BookingHistoryScreen(),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -167,7 +187,10 @@ class _HomePageState extends State<HomePage> {
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 4),
-                  Text(subtitle),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
                 ],
               ],
             ),
