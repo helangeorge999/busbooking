@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'features/dashboard/presentation/pages/search_bus_screen.dart';
+import 'features/dashboard/presentation/pages/login_screen.dart';
 
 void main() {
   runApp(const BusBookingApp());
@@ -18,7 +18,7 @@ class BusBookingApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1565C0)),
         useMaterial3: true,
       ),
-      home: const SearchBusScreen(),
+      home: const LoginScreen(),
     );
   }
 }
