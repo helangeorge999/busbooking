@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
-import 'features/auth/presentation/pages/splash_page.dart';
+import 'features/dashboard/presentation/pages/search_bus_screen.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const BusBookingApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class BusBookingApp extends StatelessWidget {
+  const BusBookingApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
+      title: 'Bus Booking',
       debugShowCheckedModeBanner: false,
-      home: SplashPage(),
+      theme: ThemeData(
+        primaryColor: const Color(0xFF1565C0),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1565C0)),
+        useMaterial3: true,
+      ),
+      home: const SearchBusScreen(),
     );
   }
 }
