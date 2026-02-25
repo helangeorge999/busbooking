@@ -7,15 +7,17 @@ class BookingData {
   final List<String> selectedSeats;
   final String passengerName;
   final String contact;
+  final String email; // passengerEmail from backend BookingSchema
   final String boardingPoint;
-  final String bookingId;
-  final String bookingDate;
+  final String bookingId; // "BK..." from backend
+  final String bookingDate; // travelDate from backend
 
   BookingData({
     required this.bus,
     required this.selectedSeats,
     required this.passengerName,
     required this.contact,
+    this.email = '',
     required this.boardingPoint,
     required this.bookingId,
     required this.bookingDate,

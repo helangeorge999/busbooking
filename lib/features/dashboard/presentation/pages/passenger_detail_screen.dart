@@ -1,7 +1,16 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'bus_list_screen.dart';
 import 'ticket_screen.dart';
 
+// ── PassengerDetailScreen ─────────────────────────────────────────────────────
+// Backend endpoint: POST /api/bookings   (requires Bearer token)
+// Request body matches BookingSchema:
+//   busId, from, to, travelDate, seats, totalAmount,
+//   passengerName, passengerPhone, passengerEmail
+// Response: { success: true, data: IBooking }
 class PassengerDetailScreen extends StatefulWidget {
   final BusModel bus;
   final List<String> selectedSeats;
@@ -17,64 +26,116 @@ class PassengerDetailScreen extends StatefulWidget {
 }
 
 class _PassengerDetailScreenState extends State<PassengerDetailScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _fullNameController = TextEditingController();
-  final _contactController = TextEditingController();
-  final _optionalContactController = TextEditingController();
-  String _selectedBoardingPoint = 'Kathmandu';
+  static const String _bookingUrl = 'http://10.0.2.2:5050/api/bookings';
 
-  final List<String> _boardingPoints = [
-    'Kathmandu',
-    'Bhaktapur',
-    'Lalitpur',
-    'Banepa',
-    'Dhulikhel',
-  ];
+  final _formKey = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+
+  bool _isLoading = false;
 
   @override
   void dispose() {
-    _fullNameController.dispose();
-    _contactController.dispose();
-    _optionalContactController.dispose();
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _emailCtrl.dispose();
     super.dispose();
   }
 
-  /// Generate a simple booking ID
-  String _generateBookingId() {
-    final now = DateTime.now();
-    return 'BK${now.millisecondsSinceEpoch.toString().substring(6)}';
-  }
-
-  /// Today's date formatted
   String get _todayFormatted {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
 
-  void _submitBooking() {
-    if (_formKey.currentState!.validate()) {
-      final booking = BookingData(
-        bus: widget.bus,
-        selectedSeats: widget.selectedSeats,
-        passengerName: _fullNameController.text.trim(),
-        contact: _contactController.text.trim(),
-        boardingPoint: _selectedBoardingPoint,
-        bookingId: _generateBookingId(),
-        bookingDate: _todayFormatted,
-      );
+  double get _totalAmount => widget.bus.price * widget.selectedSeats.length;
 
-      // Navigate to Ticket Screen — replacing this page so back won't return here
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => TicketScreen(booking: booking)),
-      );
+  /// POST /api/bookings
+  /// JWT token read from SharedPreferences (saved at login)
+  Future<void> _submitBooking() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token') ?? '';
+      final userId = prefs.getString('userId') ?? '';
+
+      if (token.isEmpty) {
+        _showSnack('Session expired. Please login again.', Colors.red);
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Body matches BookingSchema exactly
+      final body = jsonEncode({
+        'busId': widget.bus.to,
+        'from': widget.bus.from,
+        'to': widget.bus.to,
+        'travelDate': _todayFormatted,
+        'seats': widget.selectedSeats.join(', '),
+        'totalAmount': _totalAmount,
+        'passengerName': _nameCtrl.text.trim(),
+        'passengerPhone': _phoneCtrl.text.trim(),
+        'passengerEmail': _emailCtrl.text.trim(),
+      });
+
+      final response = await http
+          .post(
+            Uri.parse(_bookingUrl),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token', // authenticate middleware
+            },
+            body: body,
+          )
+          .timeout(const Duration(seconds: 10));
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode == 201 && data['success'] == true) {
+        // Backend returns: { success: true, data: IBooking }
+        final booking = data['data'] as Map<String, dynamic>;
+
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TicketScreen(
+              booking: BookingData(
+                bus: widget.bus,
+                selectedSeats: widget.selectedSeats,
+                passengerName: _nameCtrl.text.trim(),
+                contact: _phoneCtrl.text.trim(),
+                email: _emailCtrl.text.trim(),
+                boardingPoint: widget.bus.from,
+                bookingId:
+                    booking['bookingId'] ??
+                    'BK${DateTime.now().millisecondsSinceEpoch}',
+                bookingDate: _todayFormatted,
+              ),
+            ),
+          ),
+        );
+      } else {
+        _showSnack(data['message'] ?? 'Booking failed. Try again.', Colors.red);
+      }
+    } catch (e) {
+      _showSnack('Network error. Check your connection.', Colors.red);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showSnack(String msg, Color color) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
 
   @override
   Widget build(BuildContext context) {
-    final totalPrice = widget.bus.price * widget.selectedSeats.length;
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -93,7 +154,7 @@ class _PassengerDetailScreenState extends State<PassengerDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Trip summary card ──────────────────────────────────
+              // ── Trip Summary Card ────────────────────────────────────
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
@@ -122,38 +183,18 @@ class _PassengerDetailScreenState extends State<PassengerDetailScreen> {
                             ),
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1565C0).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            widget.bus.type,
-                            style: const TextStyle(
-                              color: Color(0xFF1565C0),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
+                        _typeBadge(widget.bus.type),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _detailRow(
-                      'Route',
-                      '${widget.bus.from} → ${widget.bus.to}',
-                    ),
-                    _detailRow(
+                    _row('Route', '${widget.bus.from} → ${widget.bus.to}'),
+                    _row(
                       'Departure',
                       '${widget.bus.departure} → ${widget.bus.arrival}',
                     ),
-                    _detailRow('Seat(s)', widget.selectedSeats.join(', ')),
-                    _detailRow('Passengers', '${widget.selectedSeats.length}'),
-                    _detailRow('Date', _todayFormatted),
+                    _row('Seat(s)', widget.selectedSeats.join(', ')),
+                    _row('Passengers', '${widget.selectedSeats.length}'),
+                    _row('Travel Date', _todayFormatted),
                     const Divider(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -166,7 +207,7 @@ class _PassengerDetailScreenState extends State<PassengerDetailScreen> {
                           ),
                         ),
                         Text(
-                          'Rs. ${totalPrice.toInt()}',
+                          'Rs. ${_totalAmount.toInt()}',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
@@ -186,117 +227,58 @@ class _PassengerDetailScreenState extends State<PassengerDetailScreen> {
               ),
               const SizedBox(height: 14),
 
-              // ── Boarding Point ─────────────────────────────────────
-              const Text(
-                'Boarding Point',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 6),
-              DropdownButtonFormField<String>(
-                value: _selectedBoardingPoint,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 14,
-                  ),
-                ),
-                items: _boardingPoints
-                    .map(
-                      (point) =>
-                          DropdownMenuItem(value: point, child: Text(point)),
-                    )
-                    .toList(),
-                onChanged: (val) =>
-                    setState(() => _selectedBoardingPoint = val!),
-              ),
-
-              const SizedBox(height: 14),
-
-              // ── Full Name ──────────────────────────────────────────
-              const Text(
-                'Full Name',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-              ),
+              // ── Passenger Name ───────────────────────────────────────
+              _label('Full Name'),
               const SizedBox(height: 6),
               TextFormField(
-                controller: _fullNameController,
+                controller: _nameCtrl,
                 textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(
-                  hintText: 'Enter full name',
-                  hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-                  prefixIcon: const Icon(Icons.person_outline, size: 20),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 14,
-                  ),
+                decoration: _inputDeco(
+                  hint: 'Enter full name',
+                  icon: Icons.person_outline,
                 ),
-                validator: (val) => (val == null || val.trim().isEmpty)
+                validator: (v) => (v == null || v.trim().isEmpty)
                     ? 'Full name is required'
                     : null,
               ),
 
               const SizedBox(height: 14),
 
-              // ── Contact Number ─────────────────────────────────────
-              const Text(
-                'Contact Number',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-              ),
+              // ── Phone — maps to passengerPhone ───────────────────────
+              _label('Contact Number'),
               const SizedBox(height: 6),
               TextFormField(
-                controller: _contactController,
+                controller: _phoneCtrl,
                 keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  hintText: "Passenger's number",
-                  hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-                  prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 14,
-                  ),
+                decoration: _inputDeco(
+                  hint: "Passenger's phone number",
+                  icon: Icons.phone_outlined,
                 ),
-                validator: (val) => (val == null || val.trim().length < 10)
+                validator: (v) => (v == null || v.trim().length < 7)
                     ? 'Enter a valid phone number'
                     : null,
               ),
 
               const SizedBox(height: 14),
 
-              // ── Optional Number ────────────────────────────────────
-              const Text(
-                'Optional Number',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-              ),
+              // ── Email — maps to passengerEmail ───────────────────────
+              _label('Email Address'),
               const SizedBox(height: 6),
               TextFormField(
-                controller: _optionalContactController,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  hintText: 'Second number (Optional)',
-                  hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-                  prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 14,
-                  ),
+                controller: _emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: _inputDeco(
+                  hint: "Passenger's email",
+                  icon: Icons.email_outlined,
                 ),
+                validator: (v) => (v == null || !v.contains('@'))
+                    ? 'Enter a valid email'
+                    : null,
               ),
 
               const SizedBox(height: 32),
 
-              // ── Confirm button ─────────────────────────────────────
+              // ── Confirm Booking Button ───────────────────────────────
               SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -307,15 +289,24 @@ class _PassengerDetailScreenState extends State<PassengerDetailScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  onPressed: _submitBooking,
-                  child: const Text(
-                    'Confirm Booking',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  onPressed: _isLoading ? null : _submitBooking,
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Confirm Booking',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
 
@@ -327,19 +318,53 @@ class _PassengerDetailScreenState extends State<PassengerDetailScreen> {
     );
   }
 
-  Widget _detailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
-          Text(
+  Widget _typeBadge(String type) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: const Color(0xFF1565C0).withOpacity(0.1),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Text(
+      type,
+      style: const TextStyle(
+        color: Color(0xFF1565C0),
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
+
+  Widget _row(String label, String value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+        Flexible(
+          child: Text(
             value,
+            textAlign: TextAlign.right,
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+
+  Widget _label(String text) => Text(
+    text,
+    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+  );
+
+  InputDecoration _inputDeco({required String hint, required IconData icon}) =>
+      InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+        prefixIcon: Icon(icon, size: 20),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 14,
+        ),
+      );
 }
