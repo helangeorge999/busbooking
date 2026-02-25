@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../../../../core/constants/app_colors.dart';
 import 'main_shell.dart';
 import 'signup_page.dart';
+import '../../../admin/presentation/pages/admin_shell.dart';
 
 // ── LoginPage ─────────────────────────────────────────────────────────────────
 // User login  → POST /api/auth/login    (AuthController.login)
@@ -93,7 +93,9 @@ class _LoginPageState extends State<LoginPage> {
         if (!mounted) return;
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const MainShell()),
+          MaterialPageRoute(
+            builder: (_) => _isAdmin ? const AdminShell() : const MainShell(),
+          ),
         );
       } else {
         _snack(data['message'] ?? 'Invalid email or password', Colors.red);
