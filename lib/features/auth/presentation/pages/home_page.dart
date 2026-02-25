@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'profile_page.dart';
-
-// Import dashboard screens
 import '../../../dashboard/presentation/pages/search_bus_screen.dart';
 import '../../../dashboard/presentation/pages/booking_history_screen.dart';
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+// ── HomeContent — NO Scaffold, NO AppBar — lives inside MainShell's Scaffold ─
+class HomeContent extends StatefulWidget {
+  const HomeContent({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<HomeContent> createState() => _HomeContentState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomeContentState extends State<HomeContent> {
   String firstName = '';
 
   @override
@@ -25,68 +23,61 @@ class _HomePageState extends State<HomePage> {
   Future<void> _loadFirstName() async {
     final prefs = await SharedPreferences.getInstance();
     final fullName = prefs.getString('user_name');
-
     setState(() {
-      if (fullName != null && fullName.trim().isNotEmpty) {
-        firstName = fullName.trim();
-      } else {
-        firstName = 'User';
-      }
+      firstName = (fullName != null && fullName.trim().isNotEmpty)
+          ? fullName.trim()
+          : 'User';
     });
+  }
+
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
   }
 
   @override
   Widget build(BuildContext context) {
     final bool isTablet = MediaQuery.of(context).size.width > 600;
 
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        title: const Text(
-          'Home',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: Colors.black,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ProfilePage()),
-              ).then((_) => _loadFirstName());
-            },
-          ),
-        ],
-      ),
-      body: Center(
+    // Just a plain scrollable body — Scaffold is in MainShell
+    return Container(
+      color: Colors.grey[100],
+      child: Center(
         child: SizedBox(
           width: isTablet ? 700 : double.infinity,
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // ── Greeting card ──────────────────────────────────────
+                // ── Greeting card ──────────────────────────────────
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Colors.blue, Colors.blueAccent],
+                      colors: [Color(0xFF1565C0), Color(0xFF1E88E5)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Hello, $firstName!',
+                        '$_greeting,',
                         style: const TextStyle(
-                          fontSize: 24,
+                          fontSize: 14,
+                          color: Colors.white70,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Hello, $firstName! 👋',
+                        style: const TextStyle(
+                          fontSize: 26,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
@@ -95,7 +86,7 @@ class _HomePageState extends State<HomePage> {
                       const Text(
                         'Ready to book your next bus trip?',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 14,
                           color: Colors.white70,
                           fontStyle: FontStyle.italic,
                         ),
@@ -104,45 +95,82 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
 
-                const SizedBox(height: 40),
+                const SizedBox(height: 32),
 
-                // ── Book a Ticket ──────────────────────────────────────
-                _actionCard(
-                  title: 'Book a Ticket',
-                  subtitle: 'Search buses and book tickets quickly',
-                  trailing: const Icon(
-                    Icons.confirmation_number_outlined,
-                    color: Colors.blue,
+                const Text(
+                  'What would you like to do?',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const SearchBusScreen(),
+                ),
+
+                const SizedBox(height: 16),
+
+                // ── Book a Ticket ──────────────────────────────────
+                _ActionCard(
+                  icon: Icons.confirmation_number_outlined,
+                  iconColor: const Color(0xFF1565C0),
+                  title: 'Book a Ticket',
+                  subtitle: 'Search buses and reserve your seat',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SearchBusScreen()),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // ── Booking History ────────────────────────────────
+                _ActionCard(
+                  icon: Icons.history,
+                  iconColor: Colors.orangeAccent,
+                  title: 'Booking History',
+                  subtitle: 'View your past and upcoming trips',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const BookingHistoryScreen(),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // ── Quick stats ────────────────────────────────────
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatTile(
+                        icon: Icons.route,
+                        label: 'Routes',
+                        value: '12+',
+                        color: Colors.orange,
                       ),
-                    );
-                  },
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _StatTile(
+                        icon: Icons.directions_bus,
+                        label: 'Buses',
+                        value: '30+',
+                        color: const Color(0xFF1565C0),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _StatTile(
+                        icon: Icons.star_outline,
+                        label: 'Rating',
+                        value: '4.8',
+                        color: Colors.amber,
+                      ),
+                    ),
+                  ],
                 ),
 
                 const SizedBox(height: 20),
-
-                // ── Booking History ────────────────────────────────────
-                _actionCard(
-                  title: 'Booking History',
-                  subtitle: 'View your past and upcoming trips',
-                  trailing: const Icon(
-                    Icons.history,
-                    color: Colors.orangeAccent,
-                  ),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const BookingHistoryScreen(),
-                      ),
-                    );
-                  },
-                ),
               ],
             ),
           ),
@@ -150,13 +178,26 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+}
 
-  static Widget _actionCard({
-    required String title,
-    String? subtitle,
-    required Widget trailing,
-    required VoidCallback onTap,
-  }) {
+// ── Action Card ───────────────────────────────────────────────────────────────
+class _ActionCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ActionCard({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -173,30 +214,88 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: iconColor, size: 26),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Text(
                     subtitle,
                     style: const TextStyle(fontSize: 13, color: Colors.grey),
                   ),
                 ],
-              ],
+              ),
             ),
-            trailing,
+            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Stat Tile ─────────────────────────────────────────────────────────────────
+class _StatTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _StatTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        ],
       ),
     );
   }

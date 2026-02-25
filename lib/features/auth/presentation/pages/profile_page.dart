@@ -28,11 +28,9 @@ class _ProfilePageState extends State<ProfilePage> {
     _loadProfile();
   }
 
-  /// Load profile from SharedPreferences and backend
   Future<void> _loadProfile() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Load locally first
     setState(() {
       name = prefs.getString('user_name') ?? '';
       email = prefs.getString('user_email') ?? '';
@@ -42,8 +40,7 @@ class _ProfilePageState extends State<ProfilePage> {
       photoUrl = prefs.getString('photoUrl');
     });
 
-    // Load from backend
-    final userId = prefs.getString('userId'); // ✅ Correct key
+    final userId = prefs.getString('userId');
     if (userId != null && userId.isNotEmpty) {
       try {
         final res = await http.get(
@@ -71,7 +68,6 @@ class _ProfilePageState extends State<ProfilePage> {
             if (finalPhoto != null) photoUrl = finalPhoto;
           });
 
-          // Save updated data locally
           await prefs.setString('user_name', name);
           await prefs.setString('user_email', email);
           await prefs.setString('user_phone', phone);
@@ -85,7 +81,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  /// Logout
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
@@ -104,8 +99,6 @@ class _ProfilePageState extends State<ProfilePage> {
       body: Column(
         children: [
           const SizedBox(height: 20),
-
-          // Profile photo
           CircleAvatar(
             radius: 55,
             backgroundColor: Colors.grey[300],
@@ -118,15 +111,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 ? const Icon(Icons.camera_alt, size: 30)
                 : null,
           ),
-
           const SizedBox(height: 12),
           Text(
             name.isEmpty ? 'Your Name' : name,
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
-
-          // Info card
           Expanded(
             child: Container(
               padding: const EdgeInsets.all(20),
@@ -141,8 +131,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   _infoTile(Icons.person, 'Gender', gender),
                   _infoTile(Icons.cake, 'DOB', dob),
                   const SizedBox(height: 30),
-
-                  // Edit profile
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
@@ -161,10 +149,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 15),
-
-                  // Logout
                   ElevatedButton.icon(
                     onPressed: _logout,
                     icon: const Icon(Icons.logout),

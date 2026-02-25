@@ -5,9 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   testWidgets('Home page displays full name', (tester) async {
-    SharedPreferences.setMockInitialValues({'fullName': 'Helan George'});
+    SharedPreferences.setMockInitialValues({'user_name': 'Helan George'});
 
-    await tester.pumpWidget(const MaterialApp(home: HomePage()));
+    await tester.pumpWidget(const MaterialApp(home: HomeContent()));
 
     expect(find.text('Hello, Helan George!'), findsOneWidget);
   });

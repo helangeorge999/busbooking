@@ -78,12 +78,9 @@ class _SignupPageState extends State<SignupPage> {
       );
 
       final data = jsonDecode(response.body);
-      print("Signup response: $data");
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final prefs = await SharedPreferences.getInstance();
-
-        // ✅ Works whether backend returns `user` or flat object
         final user = data['user'] ?? data;
 
         await prefs.setString('user_name', user['name'] ?? '');
@@ -118,7 +115,6 @@ class _SignupPageState extends State<SignupPage> {
     ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
 
-  // 🔹 UI REMAINS EXACTLY SAME
   @override
   Widget build(BuildContext context) {
     final bool isTablet = MediaQuery.of(context).size.width > 600;

@@ -37,12 +37,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     phoneCtrl.text = prefs.getString('user_phone') ?? '';
     genderCtrl.text = prefs.getString('user_gender') ?? '';
     dobCtrl.text = prefs.getString('user_dob') ?? '';
-
     photoUrl = prefs.getString('photoUrl');
-
-    // 🔹 Use consistent key
     userId = prefs.getString('user_id');
-
     setState(() {});
   }
 
@@ -53,11 +49,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     await prefs.setString('user_phone', phoneCtrl.text);
     await prefs.setString('user_gender', genderCtrl.text);
     await prefs.setString('user_dob', dobCtrl.text);
-
     Navigator.pop(context);
   }
 
-  /// PICK IMAGE FROM GALLERY
   Future<void> _pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
@@ -66,7 +60,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-  /// TAKE PHOTO USING CAMERA
   Future<void> _takePhoto() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.camera);
     if (pickedFile != null) {
@@ -75,7 +68,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-  /// UPLOAD IMAGE TO BACKEND
   Future<void> _uploadImage(File image) async {
     if (userId == null) return;
 
@@ -92,7 +84,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final data = jsonDecode(respStr);
 
       if (response.statusCode == 200 && data['url'] != null) {
-        // 🔹 Prepend host to relative path
         final fullUrl = 'http://10.0.2.2:5050/${data['url']}';
         setState(() => photoUrl = fullUrl);
 
@@ -122,7 +113,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            /// PROFILE PHOTO
             CircleAvatar(
               radius: 50,
               backgroundImage: _imageFile != null
@@ -135,8 +125,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   : null,
             ),
             const SizedBox(height: 10),
-
-            /// GALLERY & CAMERA BUTTONS
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -154,7 +142,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ],
             ),
             const SizedBox(height: 20),
-
             _field('Name', nameCtrl),
             _field('Email', emailCtrl),
             _field('Phone', phoneCtrl),

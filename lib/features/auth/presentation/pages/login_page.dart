@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../../core/constants/app_colors.dart';
-import '../pages/home_page.dart';
+import 'main_shell.dart';
 import 'signup_page.dart';
 
 class LoginPage extends StatelessWidget {
@@ -108,7 +108,6 @@ class LoginPage extends StatelessWidget {
       if (response.statusCode == 200 && data['user'] != null) {
         final prefs = await SharedPreferences.getInstance();
 
-        /// 🔹 SAVE USER DATA
         await prefs.setString('userId', data['user']['id'] ?? '');
         await prefs.setString('user_name', data['user']['name'] ?? '');
         await prefs.setString('user_email', data['user']['email'] ?? '');
@@ -117,10 +116,10 @@ class LoginPage extends StatelessWidget {
         await prefs.setString('user_dob', data['user']['dob'] ?? '');
         await prefs.setString('photoUrl', data['user']['photoUrl'] ?? '');
 
-        /// 🔹 Navigate to Home Page (or ProfilePage)
+        // ✅ Navigate to MainShell (has bottom nav bar)
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomePage()),
+          MaterialPageRoute(builder: (_) => const MainShell()),
         );
       } else {
         _showSnack(
