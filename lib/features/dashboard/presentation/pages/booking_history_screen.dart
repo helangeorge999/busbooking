@@ -2,14 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/api_config.dart';
+import '../../../../core/hive_service.dart';
 
-// ── BookingHistoryScreen ──────────────────────────────────────────────────────
-// Backend endpoint: GET /api/bookings/my-bookings  (requires Bearer token)
-// Response: { success: true, data: IBooking[] }  — busId is populated (IBus)
-// BookingSchema fields used:
-//   bookingId, from, to, travelDate, seats, totalAmount,
-//   passengerName, passengerPhone, passengerEmail, status, createdAt
-//   busId (populated): name, departureTime, arrivalTime, type
 class BookingHistoryScreen extends StatefulWidget {
   const BookingHistoryScreen({super.key});
 
@@ -18,11 +13,10 @@ class BookingHistoryScreen extends StatefulWidget {
 }
 
 class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
-  static const String _url = 'http://10.0.2.2:5050/api/bookings/my-bookings';
-
   List<Map<String, dynamic>> _bookings = [];
   bool _isLoading = true;
   String? _error;
+  bool _isOffline = false;
 
   @override
   void initState() {
@@ -34,6 +28,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
     setState(() {
       _isLoading = true;
       _error = null;
+      _isOffline = false;
     });
 
     try {
@@ -42,7 +37,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
 
       final response = await http
           .get(
-            Uri.parse(_url),
+            Uri.parse('${ApiConfig.bookingUrl}/my-bookings'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
@@ -54,25 +49,42 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
 
       if (response.statusCode == 200 && body['success'] == true) {
         final List<dynamic> list = body['data'] ?? [];
+        final bookings = list.cast<Map<String, dynamic>>();
+
+        // Cache bookings for offline use
+        await HiveService.cacheBookings(bookings);
+
         setState(() {
-          _bookings = list.cast<Map<String, dynamic>>();
+          _bookings = bookings;
           _isLoading = false;
         });
       } else {
-        setState(() {
-          _error = body['message'] ?? 'Failed to load bookings';
-          _isLoading = false;
-        });
+        // Try loading from cache
+        _loadFromCache(body['message'] ?? 'Failed to load bookings');
       }
     } catch (e) {
+      // Network error — try loading from cache
+      _loadFromCache('No internet connection');
+    }
+  }
+
+  void _loadFromCache(String originalError) {
+    if (HiveService.hasBookingsCache()) {
+      final cached = HiveService.getCachedBookings();
+      final cacheTime = HiveService.getBookingsCacheTime();
       setState(() {
-        _error = 'Could not connect to server.';
+        _bookings = cached;
+        _isLoading = false;
+        _isOffline = true;
+      });
+    } else {
+      setState(() {
+        _error = originalError;
         _isLoading = false;
       });
     }
   }
 
-  /// PATCH /api/bookings/:id/cancel  (BookingController.cancel)
   Future<void> _cancelBooking(String mongoId) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -104,7 +116,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
       final token = prefs.getString('token') ?? '';
 
       final response = await http.patch(
-        Uri.parse('http://10.0.2.2:5050/api/bookings/$mongoId/cancel'),
+        Uri.parse('${ApiConfig.bookingUrl}/$mongoId/cancel'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -119,7 +131,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
             backgroundColor: Colors.orange,
           ),
         );
-        _fetchBookings(); // refresh list
+        _fetchBookings();
       } else {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
         if (!mounted) return;
@@ -217,29 +229,68 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
       );
     }
 
-    return RefreshIndicator(
-      color: const Color(0xFF1565C0),
-      onRefresh: _fetchBookings,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(12),
-        itemCount: _bookings.length,
-        itemBuilder: (_, i) =>
-            _BookingCard(booking: _bookings[i], onCancel: _cancelBooking),
-      ),
+    return Column(
+      children: [
+        // Offline banner
+        if (_isOffline)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: Colors.orange[100],
+            child: Row(
+              children: [
+                const Icon(Icons.cloud_off, size: 16, color: Colors.orange),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Showing cached data (offline)',
+                    style: TextStyle(fontSize: 12, color: Colors.orange[900]),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _fetchBookings,
+                  child: Icon(
+                    Icons.refresh,
+                    size: 18,
+                    color: Colors.orange[800],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Expanded(
+          child: RefreshIndicator(
+            color: const Color(0xFF1565C0),
+            onRefresh: _fetchBookings,
+            child: ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: _bookings.length,
+              itemBuilder: (_, i) => _BookingCard(
+                booking: _bookings[i],
+                onCancel: _cancelBooking,
+                isOffline: _isOffline,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
-// ── Booking Card ──────────────────────────────────────────────────────────────
 class _BookingCard extends StatelessWidget {
   final Map<String, dynamic> booking;
   final void Function(String mongoId) onCancel;
+  final bool isOffline;
 
-  const _BookingCard({required this.booking, required this.onCancel});
+  const _BookingCard({
+    required this.booking,
+    required this.onCancel,
+    this.isOffline = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // bookingId is the "BK..." string from backend
     final String bookingId = booking['bookingId'] ?? '';
     final String from = booking['from'] ?? '';
     final String to = booking['to'] ?? '';
@@ -251,7 +302,6 @@ class _BookingCard extends StatelessWidget {
     final String status = booking['status'] ?? 'confirmed';
     final String mongoId = booking['_id'] ?? '';
 
-    // busId is populated by backend (.populate("busId"))
     final bus = booking['busId'] as Map<String, dynamic>?;
     final String busName = bus?['name'] ?? 'Bus';
     final String departureTime = bus?['departureTime'] ?? '';
@@ -271,7 +321,6 @@ class _BookingCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -284,7 +333,6 @@ class _BookingCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Status badge
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -305,10 +353,7 @@ class _BookingCard extends StatelessWidget {
                 ),
               ],
             ),
-
             const SizedBox(height: 4),
-
-            // Bus type + booking ID
             Row(
               children: [
                 Text(
@@ -322,10 +367,7 @@ class _BookingCard extends StatelessWidget {
                 ),
               ],
             ),
-
             const SizedBox(height: 12),
-
-            // Route + time
             Row(
               children: [
                 Expanded(
@@ -373,20 +415,15 @@ class _BookingCard extends StatelessWidget {
                 ),
               ],
             ),
-
             const SizedBox(height: 10),
             const Divider(),
             const SizedBox(height: 6),
-
-            // Details grid
             _detRow('Travel Date', travelDate),
             _detRow('Passenger', passengerName),
             _detRow('Phone', passengerPhone),
             _detRow('Seats', seats),
             _detRow('Total', 'Rs. ${totalAmount.toInt()}'),
-
-            // Cancel button — only for confirmed bookings
-            if (isConfirmed) ...[
+            if (isConfirmed && !isOffline) ...[
               const SizedBox(height: 12),
               Align(
                 alignment: Alignment.centerRight,

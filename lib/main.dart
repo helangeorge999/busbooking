@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'core/app_provider.dart';
 import 'core/app_translations.dart';
 import 'core/api_config.dart';
+import 'core/hive_service.dart';
 import 'features/auth/presentation/pages/splash_page.dart';
 
 final AppProvider appProvider = AppProvider();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await HiveService.init();
   await appProvider.init();
   await ApiConfig.init();
   Tr.setLanguage(appProvider.language);
