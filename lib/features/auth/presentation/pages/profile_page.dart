@@ -2,18 +2,14 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/api_config.dart';
 
 import 'edit_profile_page.dart';
 import 'login_page.dart';
 
-// ── ProfilePage ───────────────────────────────────────────────────────────────
-// GET  /api/user/profile?userId=      → load profile  (auth middleware)
-// POST /api/user/upload-photo          → upload photo  (multipart/form-data)
-//   Request fields:  file=<image>   userId=<id>
-//   Response:        { success: true, url: "http://10.0.2.2:5050/uploads/..." }
-// Backend: multer saves to /uploads/profile/, HOST_URL prepended to path
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -22,7 +18,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  static const String _base = 'http://10.0.2.2:5050/api/user';
+  static String get _base => '${ApiConfig.userUrl}';
 
   String name = '';
   String email = '';
@@ -73,7 +69,7 @@ class _ProfilePageState extends State<ProfilePage> {
         String? fetchedPhoto;
         final p = data['photoUrl'] as String? ?? '';
         if (p.isNotEmpty) {
-          fetchedPhoto = p.startsWith('http') ? p : 'http://10.0.2.2:5050/$p';
+          fetchedPhoto = ApiConfig.fixImageUrl(p);
         }
 
         setState(() {
@@ -112,7 +108,6 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Handle
               Container(
                 width: 40,
                 height: 4,
@@ -181,9 +176,6 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ── Upload photo → POST /api/user/upload-photo ─────────────────────────────
-  // multipart/form-data:
-  //   file   → req.file   (multer field name must be "file")
-  //   userId → req.body.userId
   Future<void> _uploadPhoto(File imageFile) async {
     setState(() => _uploadingPhoto = true);
 
@@ -202,35 +194,44 @@ class _ProfilePageState extends State<ProfilePage> {
         Uri.parse('$_base/upload-photo'),
       );
 
-      // Bearer token — authenticate middleware
       request.headers['Authorization'] = 'Bearer $token';
-
-      // userId in body — UserController.uploadPhoto reads req.body.userId
       request.fields['userId'] = userId;
-
-      // File field name MUST be "file" — matches upload.single("file")
       request.files.add(
         await http.MultipartFile.fromPath('file', imageFile.path),
       );
+
+      debugPrint('=== UPLOAD DEBUG ===');
+      debugPrint('URL: $_base/upload-photo');
+      debugPrint('UserId: $userId');
+      debugPrint('Token: ${token.substring(0, 20)}...');
+      debugPrint('File: ${imageFile.path}');
+      debugPrint('====================');
 
       final streamed = await request.send().timeout(
         const Duration(seconds: 30),
       );
       final res = await http.Response.fromStream(streamed);
+      debugPrint('Response status: ${res.statusCode}');
+      debugPrint('Response body: ${res.body}');
       final body = jsonDecode(res.body) as Map<String, dynamic>;
 
       if (res.statusCode == 200 && body['success'] == true) {
-        // Response: { success: true, url: "http://10.0.2.2:5050/uploads/profile/..." }
-        final String newUrl = body['url'] as String;
+        // Backend returns full URL — fix for current device
+        final String rawUrl = body['url'] as String;
+        final String newUrl = ApiConfig.fixImageUrl(rawUrl);
+
         setState(() => photoUrl = newUrl);
         await prefs.setString('photoUrl', newUrl);
         _snack('Profile photo updated!', Colors.green);
       } else {
         _snack(body['message'] ?? 'Upload failed. Try again.', Colors.red);
       }
-    } catch (e) {
-      _snack('Network error. Check your connection.', Colors.red);
-      debugPrint('Upload error: $e');
+    } catch (e, stackTrace) {
+      _snack('Network error: $e', Colors.red);
+      debugPrint('=== UPLOAD ERROR ===');
+      debugPrint('Error: $e');
+      debugPrint('Stack: $stackTrace');
+      debugPrint('====================');
     } finally {
       if (mounted) setState(() => _uploadingPhoto = false);
     }
@@ -309,11 +310,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 child: Column(
                   children: [
-                    // ── Avatar stack ─────────────────────────────
                     Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        // White border ring
                         Container(
                           width: 114,
                           height: 114,
@@ -357,8 +356,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                   ),
                           ),
                         ),
-
-                        // Uploading spinner overlay
                         if (_uploadingPhoto)
                           Positioned.fill(
                             child: Container(
@@ -374,8 +371,6 @@ class _ProfilePageState extends State<ProfilePage> {
                               ),
                             ),
                           ),
-
-                        // Camera badge — bottom right
                         if (!_uploadingPhoto)
                           Positioned(
                             bottom: 2,
@@ -405,9 +400,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                       ],
                     ),
-
                     const SizedBox(height: 14),
-
                     Text(
                       name.isEmpty ? 'Your Name' : name,
                       style: const TextStyle(
@@ -425,10 +418,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           color: Colors.white70,
                         ),
                       ),
-
                     const SizedBox(height: 14),
-
-                    // Change photo button
                     GestureDetector(
                       onTap: _uploadingPhoto ? null : _pickPhoto,
                       child: Container(
@@ -483,7 +473,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                     const SizedBox(height: 10),
-
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -512,10 +501,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 20),
-
-                    // Edit Profile
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -547,10 +533,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ).then((_) => _loadProfile()),
                       ),
                     ),
-
                     const SizedBox(height: 12),
-
-                    // Sign Out
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -577,7 +560,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         onPressed: _logout,
                       ),
                     ),
-
                     const SizedBox(height: 30),
                   ],
                 ),

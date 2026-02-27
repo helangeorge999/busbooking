@@ -2,15 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/api_config.dart';
 import 'bus_list_screen.dart';
 import 'ticket_screen.dart';
 
-// ── PassengerDetailScreen ─────────────────────────────────────────────────────
-// Backend endpoint: POST /api/bookings   (requires Bearer token)
-// Request body matches BookingSchema:
-//   busId, from, to, travelDate, seats, totalAmount,
-//   passengerName, passengerPhone, passengerEmail
-// Response: { success: true, data: IBooking }
 class PassengerDetailScreen extends StatefulWidget {
   final BusModel bus;
   final List<String> selectedSeats;
@@ -26,7 +21,7 @@ class PassengerDetailScreen extends StatefulWidget {
 }
 
 class _PassengerDetailScreenState extends State<PassengerDetailScreen> {
-  static const String _bookingUrl = 'http://10.0.2.2:5050/api/bookings';
+  static String get _bookingUrl => ApiConfig.bookingUrl;
 
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
@@ -50,8 +45,6 @@ class _PassengerDetailScreenState extends State<PassengerDetailScreen> {
 
   double get _totalAmount => widget.bus.price * widget.selectedSeats.length;
 
-  /// POST /api/bookings
-  /// JWT token read from SharedPreferences (saved at login)
   Future<void> _submitBooking() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -60,7 +53,6 @@ class _PassengerDetailScreenState extends State<PassengerDetailScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token') ?? '';
-      final userId = prefs.getString('userId') ?? '';
 
       if (token.isEmpty) {
         _showSnack('Session expired. Please login again.', Colors.red);
@@ -68,9 +60,9 @@ class _PassengerDetailScreenState extends State<PassengerDetailScreen> {
         return;
       }
 
-      // Body matches BookingSchema exactly
+      // ✅ FIX: Use widget.bus.id (MongoDB _id), NOT widget.bus.to
       final body = jsonEncode({
-        'busId': widget.bus.to,
+        'busId': widget.bus.id,
         'from': widget.bus.from,
         'to': widget.bus.to,
         'travelDate': _todayFormatted,
@@ -86,7 +78,7 @@ class _PassengerDetailScreenState extends State<PassengerDetailScreen> {
             Uri.parse(_bookingUrl),
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token', // authenticate middleware
+              'Authorization': 'Bearer $token',
             },
             body: body,
           )
@@ -95,7 +87,6 @@ class _PassengerDetailScreenState extends State<PassengerDetailScreen> {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode == 201 && data['success'] == true) {
-        // Backend returns: { success: true, data: IBooking }
         final booking = data['data'] as Map<String, dynamic>;
 
         if (!mounted) return;
@@ -227,7 +218,6 @@ class _PassengerDetailScreenState extends State<PassengerDetailScreen> {
               ),
               const SizedBox(height: 14),
 
-              // ── Passenger Name ───────────────────────────────────────
               _label('Full Name'),
               const SizedBox(height: 6),
               TextFormField(
@@ -244,7 +234,6 @@ class _PassengerDetailScreenState extends State<PassengerDetailScreen> {
 
               const SizedBox(height: 14),
 
-              // ── Phone — maps to passengerPhone ───────────────────────
               _label('Contact Number'),
               const SizedBox(height: 6),
               TextFormField(
@@ -261,7 +250,6 @@ class _PassengerDetailScreenState extends State<PassengerDetailScreen> {
 
               const SizedBox(height: 14),
 
-              // ── Email — maps to passengerEmail ───────────────────────
               _label('Email Address'),
               const SizedBox(height: 6),
               TextFormField(
@@ -278,7 +266,6 @@ class _PassengerDetailScreenState extends State<PassengerDetailScreen> {
 
               const SizedBox(height: 32),
 
-              // ── Confirm Booking Button ───────────────────────────────
               SizedBox(
                 width: double.infinity,
                 height: 52,

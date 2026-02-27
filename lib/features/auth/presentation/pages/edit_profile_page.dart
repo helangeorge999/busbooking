@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/api_config.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -23,6 +25,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final ImagePicker _picker = ImagePicker();
   String? photoUrl;
   String? userId;
+  String? token;
 
   @override
   void initState() {
@@ -38,7 +41,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     genderCtrl.text = prefs.getString('user_gender') ?? '';
     dobCtrl.text = prefs.getString('user_dob') ?? '';
     photoUrl = prefs.getString('photoUrl');
-    userId = prefs.getString('user_id');
+    userId = prefs.getString('userId'); // must match the key used at login
+    token = prefs.getString('token');
     setState(() {});
   }
 
@@ -73,10 +77,26 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://10.0.2.2:5050/api/user/upload-photo'),
+      Uri.parse('${ApiConfig.userUrl}/upload-photo'),
     );
+
+    // Add auth token — route requires authentication
+    if (token != null && token!.isNotEmpty) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+
     request.fields['userId'] = userId!;
-    request.files.add(await http.MultipartFile.fromPath('file', image.path));
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'file',
+        image.path,
+        contentType: MediaType.parse(
+          image.path.split('.').last.toLowerCase() == 'png'
+              ? 'image/png'
+              : 'image/jpeg',
+        ),
+      ),
+    );
 
     try {
       final response = await request.send();
@@ -84,7 +104,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final data = jsonDecode(respStr);
 
       if (response.statusCode == 200 && data['url'] != null) {
-        final fullUrl = 'http://10.0.2.2:5050/${data['url']}';
+        // Backend already returns full URL — fix for current device
+        final fullUrl = ApiConfig.fixImageUrl(data['url'] as String);
         setState(() => photoUrl = fullUrl);
 
         final prefs = await SharedPreferences.getInstance();
