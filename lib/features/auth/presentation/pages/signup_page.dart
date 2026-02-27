@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../../core/constants/app_colors.dart';
-import '../pages/login_page.dart';
+import 'login_page.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -11,6 +14,7 @@ class SignupPage extends StatefulWidget {
 
 class _SignupPageState extends State<SignupPage> {
   String? selectedGender;
+  bool isLoading = false;
 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
@@ -20,6 +24,8 @@ class _SignupPageState extends State<SignupPage> {
   final TextEditingController confirmPasswordController =
       TextEditingController();
 
+  static const String baseUrl = "http://10.0.2.2:5050/api/auth/register";
+
   Future<void> _selectDOB() async {
     DateTime? picked = await showDatePicker(
       context: context,
@@ -27,15 +33,13 @@ class _SignupPageState extends State<SignupPage> {
       firstDate: DateTime(1950),
       lastDate: DateTime.now(),
     );
-
     if (picked != null) {
       dobController.text =
           "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
     }
   }
 
-  // SIGNUP LOGIC WITH GMAIL VALIDATION
-  void _onSignup() {
+  Future<void> _onSignup() async {
     if (nameController.text.isEmpty ||
         emailController.text.isEmpty ||
         dobController.text.isEmpty ||
@@ -43,52 +47,72 @@ class _SignupPageState extends State<SignupPage> {
         passwordController.text.isEmpty ||
         confirmPasswordController.text.isEmpty ||
         selectedGender == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill all fields'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showSnack('Please fill all fields', Colors.red);
       return;
     }
 
-    //  Gmail validation
-    if (!emailController.text.trim().endsWith('@gmail.com')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Email must end with @gmail.com'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    if (!emailController.text.contains('@')) {
+      _showSnack('Enter a valid email address', Colors.red);
       return;
     }
 
     if (passwordController.text != confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Passwords do not match'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showSnack('Passwords do not match', Colors.red);
       return;
     }
 
-    //  SUCCESS
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Account created successfully'),
-        backgroundColor: Colors.green,
-        duration: Duration(seconds: 2),
-      ),
-    );
+    setState(() => isLoading = true);
 
-    //  Navigate to Login Page
-    Future.delayed(const Duration(seconds: 2), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => LoginPage()),
+    try {
+      final response = await http.post(
+        Uri.parse(baseUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "name": nameController.text.trim(),
+          "email": emailController.text.trim(),
+          "password": passwordController.text.trim(),
+          "dob": dobController.text.trim(),
+          "gender": selectedGender,
+          "phone": phoneController.text.trim(),
+        }),
       );
-    });
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final prefs = await SharedPreferences.getInstance();
+        final user = data['user'] ?? data;
+
+        await prefs.setString('user_name', user['name'] ?? '');
+        await prefs.setString('user_email', user['email'] ?? '');
+        await prefs.setString('user_phone', user['phone'] ?? '');
+        await prefs.setString('user_gender', user['gender'] ?? '');
+        await prefs.setString('user_dob', user['dob'] ?? '');
+        await prefs.setString('userId', user['_id'] ?? user['id'] ?? '');
+        await prefs.setString('photoUrl', user['photoUrl'] ?? '');
+
+        _showSnack('Account created successfully', Colors.green);
+
+        Future.delayed(const Duration(seconds: 1), () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => LoginPage()),
+          );
+        });
+      } else {
+        _showSnack(data['message'] ?? 'Signup failed', Colors.red);
+      }
+    } catch (e) {
+      _showSnack('Server error. Try again.', Colors.red);
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  void _showSnack(String msg, Color color) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
 
   @override
@@ -106,53 +130,41 @@ class _SignupPageState extends State<SignupPage> {
               child: Column(
                 children: [
                   const SizedBox(height: 70),
-
                   const Text(
                     'Create Your Account',
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
                   ),
-
                   const SizedBox(height: 30),
-
                   _inputField(
                     icon: Icons.person_outline,
                     hint: 'Enter Your Full Name',
                     controller: nameController,
                   ),
-
                   _dobField(),
-
                   _genderDropdown(),
-
                   _inputField(
                     icon: Icons.email_outlined,
-                    hint: 'Gmail ID',
+                    hint: 'Email Address',
                     controller: emailController,
                   ),
-
                   _inputField(
                     icon: Icons.phone,
                     hint: 'Phone Number',
                     controller: phoneController,
                   ),
-
                   _inputField(
                     icon: Icons.lock_outline,
                     hint: 'Enter Your Password',
                     controller: passwordController,
                     isPassword: true,
                   ),
-
                   _inputField(
                     icon: Icons.lock_outline,
                     hint: 'Confirm Your Password',
                     controller: confirmPasswordController,
                     isPassword: true,
                   ),
-
                   const SizedBox(height: 25),
-
-                  //  SIGN UP BUTTON
                   SizedBox(
                     width: double.infinity,
                     height: 48,
@@ -163,36 +175,26 @@ class _SignupPageState extends State<SignupPage> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      onPressed: _onSignup,
-                      child: const Text(
-                        'Sign Up',
-                        style: TextStyle(color: Colors.white),
-                      ),
+                      onPressed: isLoading ? null : _onSignup,
+                      child: isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              'Sign Up',
+                              style: TextStyle(color: Colors.white),
+                            ),
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
                   const Text('Already have an account?'),
-
                   const SizedBox(height: 10),
-
                   SizedBox(
                     width: double.infinity,
                     height: 48,
                     child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
+                      onPressed: () => Navigator.pop(context),
                       child: const Text('Sign In'),
                     ),
                   ),
-
                   const SizedBox(height: 20),
                 ],
               ),
@@ -203,7 +205,6 @@ class _SignupPageState extends State<SignupPage> {
     );
   }
 
-  //  Input Field
   Widget _inputField({
     required IconData icon,
     required String hint,
@@ -229,7 +230,6 @@ class _SignupPageState extends State<SignupPage> {
     );
   }
 
-  //  DOB Field
   Widget _dobField() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 15),
@@ -251,7 +251,6 @@ class _SignupPageState extends State<SignupPage> {
     );
   }
 
-  //  Gender Dropdown
   Widget _genderDropdown() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 15),
@@ -262,11 +261,7 @@ class _SignupPageState extends State<SignupPage> {
           DropdownMenuItem(value: 'Female', child: Text('Female')),
           DropdownMenuItem(value: 'Others', child: Text('Others')),
         ],
-        onChanged: (value) {
-          setState(() {
-            selectedGender = value;
-          });
-        },
+        onChanged: (value) => setState(() => selectedGender = value),
         decoration: InputDecoration(
           hintText: 'Gender',
           prefixIcon: const Icon(Icons.transgender),

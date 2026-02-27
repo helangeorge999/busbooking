@@ -19,22 +19,28 @@ class SplashPage extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // // 🔹 App Title / Logo Placeholder
-                // const Icon(
-                //   Icons.search,
-                //   size: 80,
-                //   color: Colors.blue,
-                // ),
+                const Icon(Icons.directions_bus, size: 80, color: Colors.blue),
                 const SizedBox(height: 16),
 
                 const Text(
-                  'Login/ Signup',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  'Bus Booking',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                const Text(
+                  'Book your seat with ease',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
                 ),
 
                 const SizedBox(height: 60),
 
-                // 🔹 Login Button
+                // Login Button
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -53,19 +59,20 @@ class SplashPage extends StatelessWidget {
                     },
                     child: const Text(
                       'Login',
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: Colors.white, fontSize: 16),
                     ),
                   ),
                 ),
 
                 const SizedBox(height: 16),
 
-                // 🔹 Signup Button
+                // Signup Button
                 SizedBox(
                   width: double.infinity,
                   height: 48,
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.blue),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -73,10 +80,13 @@ class SplashPage extends StatelessWidget {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => SignupPage()),
+                        MaterialPageRoute(builder: (_) => const SignupPage()),
                       );
                     },
-                    child: const Text('Sign Up'),
+                    child: const Text(
+                      'Sign Up',
+                      style: TextStyle(color: Colors.blue, fontSize: 16),
+                    ),
                   ),
                 ),
               ],
