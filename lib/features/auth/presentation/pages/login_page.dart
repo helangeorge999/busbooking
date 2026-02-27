@@ -92,7 +92,20 @@ class _LoginPageState extends State<LoginPage> {
         _snack(data['message'] ?? 'Invalid email or password', Colors.red);
       }
     } catch (e) {
-      _snack('Server error. Make sure backend is running.', Colors.red);
+      // If offline but already logged in, go to the app without re-authenticating
+      final prefs = await SharedPreferences.getInstance();
+      final storedToken = prefs.getString('token') ?? '';
+      if (storedToken.isNotEmpty && mounted) {
+        final isAdmin = prefs.getBool('isAdmin') ?? false;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => isAdmin ? const AdminShell() : const MainShell(),
+          ),
+        );
+        return;
+      }
+      _snack('No internet. Connect to a network and try again.', Colors.red);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

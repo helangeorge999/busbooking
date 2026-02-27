@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../../../core/api_config.dart';
@@ -122,8 +123,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       } else {
         _snack(data['message'] ?? 'Email not found', Colors.red);
       }
-    } catch (_) {
-      _snack('Server error. Make sure backend is running.', Colors.red);
+    } catch (e) {
+      final msg = e is SocketException
+          ? 'No internet connection. Please check your network.'
+          : 'Server error. Make sure backend is running.';
+      _snack(msg, Colors.red);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -171,8 +175,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       } else {
         _snack(data['message'] ?? 'Failed to reset password', Colors.red);
       }
-    } catch (_) {
-      _snack('Server error. Make sure backend is running.', Colors.red);
+    } catch (e) {
+      final msg = e is SocketException
+          ? 'No internet connection. Please check your network.'
+          : 'Server error. Make sure backend is running.';
+      _snack(msg, Colors.red);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

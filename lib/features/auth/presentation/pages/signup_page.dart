@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../../core/api_config.dart';
 import '../../../../../core/constants/app_colors.dart';
 import 'login_page.dart';
 
@@ -24,7 +26,6 @@ class _SignupPageState extends State<SignupPage> {
   final TextEditingController confirmPasswordController =
       TextEditingController();
 
-  static const String baseUrl = "http://10.0.2.2:5050/api/auth/register";
 
   Future<void> _selectDOB() async {
     DateTime? picked = await showDatePicker(
@@ -65,7 +66,7 @@ class _SignupPageState extends State<SignupPage> {
 
     try {
       final response = await http.post(
-        Uri.parse(baseUrl),
+        Uri.parse('${ApiConfig.authUrl}/register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           "name": nameController.text.trim(),
@@ -103,7 +104,10 @@ class _SignupPageState extends State<SignupPage> {
         _showSnack(data['message'] ?? 'Signup failed', Colors.red);
       }
     } catch (e) {
-      _showSnack('Server error. Try again.', Colors.red);
+      final msg = e is SocketException
+          ? 'No internet connection. Please check your network.'
+          : 'Server error. Try again.';
+      _showSnack(msg, Colors.red);
     } finally {
       setState(() => isLoading = false);
     }

@@ -91,8 +91,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = e is SocketException
+            ? 'No internet connection. Please check your network.'
+            : 'Server error. Please try again.';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Server error. Please try again.')),
+          SnackBar(content: Text(msg)),
         );
       }
     }
@@ -153,18 +156,27 @@ class _EditProfilePageState extends State<EditProfilePage> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('photoUrl', fullUrl);
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Profile photo updated')));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile photo updated')),
+          );
+        }
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Failed to upload photo')));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to upload photo')),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Server error')));
+      if (mounted) {
+        final msg = e is SocketException
+            ? 'No internet connection. Cannot upload photo.'
+            : 'Server error. Failed to upload photo.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg)),
+        );
+      }
     }
   }
 

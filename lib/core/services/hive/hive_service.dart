@@ -5,6 +5,7 @@ class HiveService {
   static const String _bookingsBox = 'bookings_cache';
   static const String _profileBox = 'profile_cache';
   static const String _busesBox = 'buses_cache';
+  static const String _seatsBox = 'seats_cache';
 
   /// Initialize Hive — call once in main()
   static Future<void> init() async {
@@ -12,6 +13,7 @@ class HiveService {
     await Hive.openBox<Map>(_bookingsBox);
     await Hive.openBox<Map>(_profileBox);
     await Hive.openBox<Map>(_busesBox);
+    await Hive.openBox<Map>(_seatsBox);
   }
 
   // ── Bookings Cache ─────────────────────────────────────────────────────────
@@ -111,12 +113,35 @@ class HiveService {
     return busList.map((b) => _deepCastMap(b as Map)).toList();
   }
 
+  // ── Booked Seats Cache ─────────────────────────────────────────────────────
+
+  static Box<Map> get _seats => Hive.box<Map>(_seatsBox);
+
+  /// Save the set of booked seat labels for a specific bus.
+  static Future<void> cacheBookedSeats(
+      String busId, Set<String> seats) async {
+    await _seats.put('bus_$busId', {
+      'seats': seats.toList(),
+      'cachedAt': DateTime.now().toIso8601String(),
+    });
+  }
+
+  /// Get cached booked seats for a bus. Returns null if no cache exists.
+  static Set<String>? getCachedBookedSeats(String busId) {
+    final data = _seats.get('bus_$busId');
+    if (data == null) return null;
+    final seats = data['seats'] as List?;
+    if (seats == null) return null;
+    return seats.map((s) => s.toString()).toSet();
+  }
+
   // ── Clear All Cache ────────────────────────────────────────────────────────
 
   static Future<void> clearAll() async {
     await _bookings.clear();
     await _profile.clear();
     await _buses.clear();
+    await _seats.clear();
   }
 
   /// Clear only bookings cache

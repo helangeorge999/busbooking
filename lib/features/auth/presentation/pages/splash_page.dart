@@ -1,13 +1,58 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'login_page.dart';
 import 'signup_page.dart';
+import 'main_shell.dart';
+import '../../../admin/presentation/pages/admin_shell.dart';
 
-class SplashPage extends StatelessWidget {
+class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
+
+  @override
+  State<SplashPage> createState() => _SplashPageState();
+}
+
+class _SplashPageState extends State<SplashPage> {
+  bool _checking = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAutoLogin();
+  }
+
+  /// If the user already has a stored token, skip the login screen entirely.
+  Future<void> _checkAutoLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token') ?? '';
+
+    if (token.isNotEmpty && mounted) {
+      final isAdmin = prefs.getBool('isAdmin') ?? false;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => isAdmin ? const AdminShell() : const MainShell(),
+        ),
+      );
+      return;
+    }
+
+    if (mounted) setState(() => _checking = false);
+  }
 
   @override
   Widget build(BuildContext context) {
     final bool isTablet = MediaQuery.of(context).size.width > 600;
+
+    // Show a simple loading indicator while checking the stored token.
+    if (_checking) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.blue),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,

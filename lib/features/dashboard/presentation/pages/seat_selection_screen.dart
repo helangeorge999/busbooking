@@ -1,4 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import '../../../../core/api_config.dart';
+import '../../../../core/services/hive/hive_service.dart';
 import 'passenger_detail_screen.dart';
 import 'bus_list_screen.dart';
 
@@ -20,30 +24,67 @@ class SeatSelectionScreen extends StatefulWidget {
 }
 
 class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
-  late List<List<SeatModel?>> seatGrid;
+  List<List<SeatModel?>> seatGrid = [];
+  bool _isLoading = true;
+  bool _isOffline = false;
 
   @override
   void initState() {
     super.initState();
-    _initSeats();
+    _fetchAndInit();
   }
 
-  void _initSeats() {
-    // 2+2 layout: 4 seats per row with aisle in middle, 10 rows
-    const bookedSeats = {
-      'A1',
-      'A4',
-      'B2',
-      'C3',
-      'D1',
-      'D4',
-      'E2',
-      'F1',
-      'G3',
-      'H4',
-      'I1',
-      'J2',
-    };
+  /// Fetch booked seats from backend, then build the seat grid.
+  Future<void> _fetchAndInit() async {
+    setState(() {
+      _isLoading = true;
+      _isOffline = false;
+    });
+
+    final bookedSeats = await _fetchBookedSeats();
+    _initSeats(bookedSeats);
+
+    setState(() => _isLoading = false);
+  }
+
+  /// GET /api/bookings/bus/[busId] - returns list of bookings for this bus.
+  /// Saves to Hive on success; falls back to Hive cache when offline.
+  Future<Set<String>> _fetchBookedSeats() async {
+    try {
+      final uri = Uri.parse(
+        '${ApiConfig.bookingUrl}/bus/${widget.bus.id}',
+      );
+      final response = await http
+          .get(uri, headers: {'Content-Type': 'application/json'})
+          .timeout(const Duration(seconds: 10));
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        final bookings = data['data'] as List<dynamic>;
+        final Set<String> booked = {};
+        for (final booking in bookings) {
+          final seats = booking['seats'] as String? ?? '';
+          booked.addAll(
+            seats.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty),
+          );
+        }
+        // Save to cache for offline use
+        await HiveService.cacheBookedSeats(widget.bus.id, booked);
+        return booked;
+      }
+    } catch (_) {
+      // Network failed — try Hive cache
+      final cached = HiveService.getCachedBookedSeats(widget.bus.id);
+      if (cached != null) {
+        setState(() => _isOffline = true);
+        return cached;
+      }
+    }
+    return {};
+  }
+
+  void _initSeats(Set<String> bookedSeats) {
     final rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
     seatGrid = rows.map((row) {
@@ -187,7 +228,6 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   }
 
   Widget _buildSeat(SeatModel? seat) {
-    // Aisle gap
     if (seat == null) return const SizedBox(width: 20);
 
     return GestureDetector(
@@ -250,174 +290,238 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0.5,
+        actions: [
+          if (!_isLoading)
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh seats',
+              onPressed: _fetchAndInit,
+            ),
+        ],
       ),
-      body: Column(
-        children: [
-          // Bus front indicator
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.directions_bus,
-                        size: 20,
-                        color: Color(0xFF1565C0),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Available Seats',
-                        style: TextStyle(color: Colors.grey[700], fontSize: 13),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Column headers: window / aisle
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _headerLabel('A'),
-                _headerLabel('B'),
-                const SizedBox(width: 28),
-                _headerLabel('C'),
-                _headerLabel('D'),
-              ],
-            ),
-          ),
-
-          // Seat grid
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      body: _isLoading
+          ? const Center(
               child: Column(
-                children: seatGrid.asMap().entries.map((entry) {
-                  final rowIndex = entry.key;
-                  final row = entry.value;
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Row number label
-                      SizedBox(
-                        width: 24,
-                        child: Text(
-                          '${rowIndex + 1}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[500],
-                            fontWeight: FontWeight.w500,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      ...row.map((seat) => _buildSeat(seat)),
-                    ],
-                  );
-                }).toList(),
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: Color(0xFF1565C0)),
+                  SizedBox(height: 12),
+                  Text(
+                    'Loading seats...',
+                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                  ),
+                ],
               ),
-            ),
-          ),
-
-          // Legend
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            )
+          : Column(
               children: [
-                _legend(Colors.pink[100]!, Colors.pink[300]!, 'Booked'),
-                const SizedBox(width: 20),
-                _legend(Colors.green[200]!, Colors.green[400]!, 'Available'),
-                const SizedBox(width: 20),
-                _legend(
-                  const Color(0xFF1565C0),
-                  const Color(0xFF0D47A1),
-                  'Selected',
-                ),
-              ],
-            ),
-          ),
-
-          // Selected summary + Continue button
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Column(
-              children: [
-                if (selected.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                // Offline banner
+                if (_isOffline)
+                  Container(
+                    width: double.infinity,
+                    color: Colors.orange.shade100,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Selected: ${selected.join(', ')}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
+                        const Icon(Icons.wifi_off,
+                            size: 16, color: Colors.orange),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Offline — showing cached seat data',
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.orange),
                           ),
                         ),
-                        Text(
-                          'Rs. ${(widget.bus.price * selected.length).toInt()}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1565C0),
+                        TextButton(
+                          onPressed: _fetchAndInit,
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
                           ),
+                          child: const Text('Retry',
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.orange)),
                         ),
                       ],
                     ),
                   ),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: selected.isNotEmpty
-                          ? const Color(0xFF1565C0)
-                          : Colors.grey[300],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+
+                // Bus front indicator
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.directions_bus,
+                              size: 20,
+                              color: Color(0xFF1565C0),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Available Seats',
+                              style: TextStyle(
+                                  color: Colors.grey[700], fontSize: 13),
+                            ),
+                          ],
+                        ),
                       ),
+                    ],
+                  ),
+                ),
+
+                // Column headers
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _headerLabel('A'),
+                      _headerLabel('B'),
+                      const SizedBox(width: 28),
+                      _headerLabel('C'),
+                      _headerLabel('D'),
+                    ],
+                  ),
+                ),
+
+                // Seat grid
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 4),
+                    child: Column(
+                      children: seatGrid.asMap().entries.map((entry) {
+                        final rowIndex = entry.key;
+                        final row = entry.value;
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 24,
+                              child: Text(
+                                '${rowIndex + 1}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[500],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            ...row.map((seat) => _buildSeat(seat)),
+                          ],
+                        );
+                      }).toList(),
                     ),
-                    onPressed: _showConfirmationDialog,
-                    child: Text(
-                      selected.isEmpty
-                          ? 'Select a Seat to Continue'
-                          : 'Continue (${selected.length} seat${selected.length > 1 ? 's' : ''})',
-                      style: TextStyle(
-                        color: selected.isNotEmpty
-                            ? Colors.white
-                            : Colors.grey[500],
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+                // Legend
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _legend(
+                          Colors.pink[100]!, Colors.pink[300]!, 'Booked'),
+                      const SizedBox(width: 20),
+                      _legend(Colors.green[200]!, Colors.green[400]!,
+                          'Available'),
+                      const SizedBox(width: 20),
+                      _legend(
+                        const Color(0xFF1565C0),
+                        const Color(0xFF0D47A1),
+                        'Selected',
                       ),
-                    ),
+                    ],
+                  ),
+                ),
+
+                // Selected summary + Continue button
+                Container(
+                  color: Colors.white,
+                  padding:
+                      const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: Column(
+                    children: [
+                      if (selected.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Selected: ${selected.join(', ')}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              Text(
+                                'Rs. ${(widget.bus.price * selected.length).toInt()}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1565C0),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: selected.isNotEmpty
+                                ? const Color(0xFF1565C0)
+                                : Colors.grey[300],
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: _showConfirmationDialog,
+                          child: Text(
+                            selected.isEmpty
+                                ? 'Select a Seat to Continue'
+                                : 'Continue (${selected.length} seat${selected.length > 1 ? 's' : ''})',
+                            style: TextStyle(
+                              color: selected.isNotEmpty
+                                  ? Colors.white
+                                  : Colors.grey[500],
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 

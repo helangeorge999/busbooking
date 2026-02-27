@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'bus_list_screen.dart';
 import '../../../auth/presentation/pages/main_shell.dart';
 
@@ -24,13 +27,263 @@ class BookingData {
   });
 }
 
-class TicketScreen extends StatelessWidget {
+class TicketScreen extends StatefulWidget {
   final BookingData booking;
 
   const TicketScreen({super.key, required this.booking});
 
   @override
+  State<TicketScreen> createState() => _TicketScreenState();
+}
+
+class _TicketScreenState extends State<TicketScreen> {
+  bool _isDownloading = false;
+
+  Future<void> _downloadTicket() async {
+    setState(() => _isDownloading = true);
+    try {
+      final booking = widget.booking;
+      final totalPrice = (booking.bus.price * booking.selectedSeats.length).toInt();
+
+      final doc = pw.Document();
+
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          build: (pw.Context ctx) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Header
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(20),
+                  decoration: pw.BoxDecoration(
+                    color: const PdfColor.fromInt(0xFF1565C0),
+                    borderRadius: pw.BorderRadius.circular(12),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'BUS BOOKING TICKET',
+                        style: pw.TextStyle(
+                          color: PdfColors.white,
+                          fontSize: 20,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      pw.SizedBox(height: 6),
+                      pw.Text(
+                        booking.bus.name,
+                        style: pw.TextStyle(
+                          color: PdfColors.white,
+                          fontSize: 15,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        '${booking.bus.from}  →  ${booking.bus.to}',
+                        style: const pw.TextStyle(
+                          color: PdfColors.white,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                pw.SizedBox(height: 20),
+
+                // Booking confirmed banner
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.symmetric(vertical: 10),
+                  decoration: pw.BoxDecoration(
+                    color: const PdfColor.fromInt(0xFF4CAF50),
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  child: pw.Center(
+                    child: pw.Text(
+                      '✓  Booking Confirmed',
+                      style: pw.TextStyle(
+                        color: PdfColors.white,
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+
+                pw.SizedBox(height: 20),
+
+                // Journey details
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    _pdfTimeBlock('Departure', booking.bus.departure, booking.bus.from),
+                    pw.Text(
+                      booking.bus.duration,
+                      style: const pw.TextStyle(color: PdfColors.grey, fontSize: 11),
+                    ),
+                    _pdfTimeBlock('Arrival', booking.bus.arrival, booking.bus.to, alignRight: true),
+                  ],
+                ),
+
+                pw.SizedBox(height: 16),
+                pw.Divider(),
+                pw.SizedBox(height: 12),
+
+                // Detail rows
+                pw.Row(
+                  children: [
+                    pw.Expanded(child: _pdfDetailItem('Seat(s)', booking.selectedSeats.join(', '))),
+                    pw.Expanded(child: _pdfDetailItem('Passengers', '${booking.selectedSeats.length}')),
+                  ],
+                ),
+                pw.SizedBox(height: 10),
+                pw.Row(
+                  children: [
+                    pw.Expanded(child: _pdfDetailItem('Boarding Point', booking.boardingPoint)),
+                    pw.Expanded(child: _pdfDetailItem('Date', booking.bookingDate)),
+                  ],
+                ),
+                pw.SizedBox(height: 10),
+                pw.Row(
+                  children: [
+                    pw.Expanded(child: _pdfDetailItem('Passenger', booking.passengerName)),
+                    pw.Expanded(child: _pdfDetailItem('Contact', booking.contact)),
+                  ],
+                ),
+                if (booking.email.isNotEmpty) ...[
+                  pw.SizedBox(height: 10),
+                  _pdfDetailItem('Email', booking.email),
+                ],
+                if (booking.bus.type.isNotEmpty) ...[
+                  pw.SizedBox(height: 10),
+                  _pdfDetailItem('Bus Type', booking.bus.type),
+                ],
+
+                pw.SizedBox(height: 16),
+                pw.Divider(),
+                pw.SizedBox(height: 12),
+
+                // Booking ID
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(
+                      'Booking ID',
+                      style: const pw.TextStyle(color: PdfColors.grey, fontSize: 12),
+                    ),
+                    pw.Text(
+                      booking.bookingId,
+                      style: pw.TextStyle(
+                        fontSize: 12,
+                        fontWeight: pw.FontWeight.bold,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ],
+                ),
+
+                pw.SizedBox(height: 16),
+                pw.Divider(),
+                pw.SizedBox(height: 12),
+
+                // Total
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(
+                      'Total Amount',
+                      style: pw.TextStyle(
+                        fontSize: 15,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.Text(
+                      'Rs. $totalPrice',
+                      style: pw.TextStyle(
+                        fontSize: 22,
+                        fontWeight: pw.FontWeight.bold,
+                        color: const PdfColor.fromInt(0xFF1565C0),
+                      ),
+                    ),
+                  ],
+                ),
+
+                pw.Spacer(),
+
+                // Footer
+                pw.Center(
+                  child: pw.Text(
+                    'Thank you for booking with Bus Booking!',
+                    style: const pw.TextStyle(color: PdfColors.grey, fontSize: 11),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+
+      final bytes = await doc.save();
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'ticket_${booking.bookingId}.pdf',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to download ticket: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isDownloading = false);
+    }
+  }
+
+  pw.Widget _pdfTimeBlock(String label, String time, String city, {bool alignRight = false}) {
+    return pw.Column(
+      crossAxisAlignment: alignRight ? pw.CrossAxisAlignment.end : pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(label, style: const pw.TextStyle(color: PdfColors.grey, fontSize: 10)),
+        pw.Text(
+          time,
+          style: pw.TextStyle(
+            fontSize: 16,
+            fontWeight: pw.FontWeight.bold,
+            color: const PdfColor.fromInt(0xFF1565C0),
+          ),
+        ),
+        pw.Text(city, style: const pw.TextStyle(color: PdfColors.grey, fontSize: 11)),
+      ],
+    );
+  }
+
+  pw.Widget _pdfDetailItem(String label, String value) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(label, style: const pw.TextStyle(color: PdfColors.grey, fontSize: 10)),
+        pw.SizedBox(height: 2),
+        pw.Text(
+          value,
+          style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+        ),
+      ],
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final booking = widget.booking;
     final totalPrice = booking.bus.price * booking.selectedSeats.length;
 
     return Scaffold(
@@ -349,6 +602,41 @@ class TicketScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
+            // ── Download Ticket button ────────────────────────────────
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[700],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: _isDownloading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.download_outlined, color: Colors.white),
+                label: Text(
+                  _isDownloading ? 'Preparing PDF...' : 'Download Ticket',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                onPressed: _isDownloading ? null : _downloadTicket,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
             // ── Go to Home button ────────────────────────────────────
             SizedBox(
               width: double.infinity,
@@ -370,14 +658,10 @@ class TicketScreen extends StatelessWidget {
                   ),
                 ),
                 onPressed: () {
-                  print('🏠 Go to Home pressed');
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(builder: (_) => const MainShell()),
-                    (route) {
-                      print('🗺️ Removing route: $route');
-                      return false;
-                    },
+                    (route) => false,
                   );
                 },
               ),

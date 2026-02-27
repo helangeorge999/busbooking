@@ -318,7 +318,11 @@ class _BusListScreenState extends State<BusListScreen> {
             child: ListView.builder(
               padding: const EdgeInsets.all(12),
               itemCount: _buses.length,
-              itemBuilder: (_, i) => _BusCard(bus: _buses[i]),
+              itemBuilder: (_, i) => _BusCard(
+                bus: _buses[i],
+                departed: _isToday(widget.date) &&
+                    _isDeparted(_buses[i].departure),
+              ),
             ),
           ),
         ),
@@ -327,219 +331,288 @@ class _BusListScreenState extends State<BusListScreen> {
   }
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/// Returns true if [selectedDate] (yyyy-MM-dd) is today.
+bool _isToday(String selectedDate) {
+  final now = DateTime.now();
+  final today =
+      '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  return selectedDate == today;
+}
+
+/// Parses a time string like "05:00 AM", "5:00 AM", "17:00", "5:00"
+/// and returns true if that time is strictly before now.
+bool _isDeparted(String timeStr) {
+  try {
+    final now = DateTime.now();
+    final t = timeStr.trim().toUpperCase();
+    int hour, minute;
+
+    if (t.contains('AM') || t.contains('PM')) {
+      // 12-hour format: "5:00 AM" or "05:00 PM"
+      final isPm = t.contains('PM');
+      final cleaned = t.replaceAll('AM', '').replaceAll('PM', '').trim();
+      final parts = cleaned.split(':');
+      hour = int.parse(parts[0]);
+      minute = parts.length > 1 ? int.parse(parts[1]) : 0;
+      if (hour == 12) hour = 0;
+      if (isPm) hour += 12;
+    } else {
+      // 24-hour format: "17:00" or "5:00"
+      final parts = t.split(':');
+      hour = int.parse(parts[0]);
+      minute = parts.length > 1 ? int.parse(parts[1]) : 0;
+    }
+
+    final departure = DateTime(now.year, now.month, now.day, hour, minute);
+    return departure.isBefore(now);
+  } catch (_) {
+    return false;
+  }
+}
+
 // ── Bus Card ──────────────────────────────────────────────────────────────────
 class _BusCard extends StatelessWidget {
   final BusModel bus;
-  const _BusCard({required this.bus});
+  final bool departed;
+  const _BusCard({required this.bus, this.departed = false});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: Colors.white,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Bus name + type badge
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    bus.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1565C0).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    bus.type,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF1565C0),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 14),
-
-            // Time row — departureTime → arrivalTime
-            Row(
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      bus.departure,
+    return Opacity(
+      opacity: departed ? 0.5 : 1.0,
+      child: Card(
+        color: Colors.white,
+        margin: const EdgeInsets.only(bottom: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: departed ? 0 : 2,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Bus name + type badge
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      bus.name,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 15,
                       ),
                     ),
-                    Text(
-                      bus.from,
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                  if (departed)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'Departed',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.red,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1565C0).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        bus.type,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF1565C0),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                  ],
-                ),
-                Expanded(
-                  child: Column(
+                ],
+              ),
+
+              const SizedBox(height: 14),
+
+              // Time row — departureTime → arrivalTime
+              Row(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        bus.departure,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        bus.from,
+                        style:
+                            const TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF1565C0),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            Expanded(
+                              child: Container(
+                                height: 1,
+                                color: Colors.grey[300],
+                              ),
+                            ),
+                            const Icon(
+                              Icons.directions_bus,
+                              size: 14,
+                              color: Color(0xFF1565C0),
+                            ),
+                            Expanded(
+                              child: Container(
+                                height: 1,
+                                color: Colors.grey[300],
+                              ),
+                            ),
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF1565C0),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        bus.arrival,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        bus.to,
+                        style:
+                            const TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // Rating
+              Row(
+                children: [
+                  const Icon(Icons.star, color: Colors.amber, size: 14),
+                  const SizedBox(width: 3),
+                  Text(
+                    bus.rating.toStringAsFixed(1),
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 8),
+              const Divider(),
+              const SizedBox(height: 8),
+
+              // Price + seats + button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Rs. ${bus.price.toInt()}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                          color: Color(0xFF1565C0),
+                        ),
+                      ),
                       Row(
                         children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF1565C0),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          Expanded(
-                            child: Container(
-                              height: 1,
-                              color: Colors.grey[300],
-                            ),
-                          ),
                           const Icon(
-                            Icons.directions_bus,
-                            size: 14,
-                            color: Color(0xFF1565C0),
+                            Icons.event_seat,
+                            size: 13,
+                            color: Colors.green,
                           ),
-                          Expanded(
-                            child: Container(
-                              height: 1,
-                              color: Colors.grey[300],
-                            ),
-                          ),
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF1565C0),
-                              shape: BoxShape.circle,
+                          const SizedBox(width: 3),
+                          Text(
+                            '${bus.totalSeats} seats',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.green,
                             ),
                           ),
                         ],
                       ),
                     ],
                   ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      bus.arrival,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4CAF50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
                       ),
                     ),
-                    Text(
-                      bus.to,
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            // Rating
-            Row(
-              children: [
-                const Icon(Icons.star, color: Colors.amber, size: 14),
-                const SizedBox(width: 3),
-                Text(
-                  bus.rating.toStringAsFixed(1),
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 8),
-            const Divider(),
-            const SizedBox(height: 8),
-
-            // Price + seats + button
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Rs. ${bus.price.toInt()}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 17,
-                        color: Color(0xFF1565C0),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.event_seat,
-                          size: 13,
-                          color: Colors.green,
-                        ),
-                        const SizedBox(width: 3),
-                        Text(
-                          '${bus.totalSeats} seats',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.green,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4CAF50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
+                    onPressed: (!departed && bus.totalSeats > 0)
+                        ? () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => SeatSelectionScreen(bus: bus),
+                              ),
+                            )
+                        : null,
+                    child: Text(
+                      departed
+                          ? 'Departed'
+                          : bus.totalSeats > 0
+                              ? 'View Seats'
+                              : 'Full',
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 13),
                     ),
                   ),
-                  onPressed: bus.totalSeats > 0
-                      ? () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => SeatSelectionScreen(bus: bus),
-                          ),
-                        )
-                      : null,
-                  child: Text(
-                    bus.totalSeats > 0 ? 'View Seats' : 'Full',
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
-                  ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

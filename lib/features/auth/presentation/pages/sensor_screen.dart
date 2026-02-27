@@ -31,6 +31,7 @@ class _SensorScreenState extends State<SensorScreen> {
   bool _hasLightSensor = false;
   StreamSubscription? _lightSub;
   Timer? _brightnessTimer;
+  DateTime _lastLuxUpdate = DateTime(0);
 
   @override
   void initState() {
@@ -75,6 +76,9 @@ class _SensorScreenState extends State<SensorScreen> {
       setState(() => _hasLightSensor = hasSensor);
       if (hasSensor) {
         _lightSub = LightSensor.luxStream().listen((lux) {
+          final now = DateTime.now();
+          if (now.difference(_lastLuxUpdate).inMilliseconds < 1000) return;
+          _lastLuxUpdate = now;
           if (mounted) {
             setState(() => _lux = lux);
             // Auto brightness: debounce 2 s before switching theme
