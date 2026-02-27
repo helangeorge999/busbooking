@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../main.dart';
 import '../../../../core/app_translations.dart';
 import '../../../../core/api_config.dart';
+import '../../../../core/services/hive/hive_service.dart';
 import 'home_page.dart';
 import 'profile_page.dart';
 import 'edit_profile_page.dart';
@@ -26,15 +27,19 @@ class _MainShellState extends State<MainShell> {
   String userEmail = '';
   String? photoUrl;
 
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   @override
   void initState() {
     super.initState();
+    print('🟢 MainShell initState called');
     _loadUserData();
     appProvider.addListener(_onAppChange);
   }
 
   @override
   void dispose() {
+    print('🟡 MainShell dispose called');
     appProvider.removeListener(_onAppChange);
     super.dispose();
   }
@@ -44,12 +49,16 @@ class _MainShellState extends State<MainShell> {
   }
 
   Future<void> _loadUserData() async {
+    print('📦 _loadUserData called');
     final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token') ?? '';
+    print('🔑 Token in MainShell: ${token.isEmpty ? "EMPTY!" : "exists"}');
     setState(() {
       userName = prefs.getString('user_name') ?? 'User';
       userEmail = prefs.getString('user_email') ?? '';
       photoUrl = prefs.getString('photoUrl');
     });
+    appProvider.notify();
   }
 
   void _onTabTapped(int index) {
@@ -69,7 +78,12 @@ class _MainShellState extends State<MainShell> {
 
   // ── Logout ─────────────────────────────────────────────────────────────────
   Future<void> _logout() async {
-    Navigator.pop(context);
+    print(
+      '🔴 _logout called! drawer open: ${_scaffoldKey.currentState?.isDrawerOpen}',
+    );
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      Navigator.pop(context);
+    }
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -96,12 +110,12 @@ class _MainShellState extends State<MainShell> {
 
     if (confirm == true) {
       final prefs = await SharedPreferences.getInstance();
-      // Save dark mode and language preferences before clearing
       final isDark = prefs.getBool('dark_mode') ?? false;
       final lang = prefs.getString('language') ?? 'en';
       await prefs.clear();
       await prefs.setBool('dark_mode', isDark);
       await prefs.setString('language', lang);
+      await HiveService.clearAll();
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
@@ -112,7 +126,9 @@ class _MainShellState extends State<MainShell> {
 
   // ── Change Password ────────────────────────────────────────────────────────
   void _showChangePassword() {
-    Navigator.pop(context);
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      Navigator.pop(context);
+    }
     final currentCtrl = TextEditingController();
     final newCtrl = TextEditingController();
     final confirmCtrl = TextEditingController();
@@ -208,7 +224,6 @@ class _MainShellState extends State<MainShell> {
                           try {
                             final prefs = await SharedPreferences.getInstance();
                             final token = prefs.getString('token') ?? '';
-
                             final response = await http.post(
                               Uri.parse('${ApiConfig.userUrl}/change-password'),
                               headers: {
@@ -220,10 +235,8 @@ class _MainShellState extends State<MainShell> {
                                 'newPassword': newCtrl.text,
                               }),
                             );
-
                             final data = jsonDecode(response.body);
                             Navigator.pop(ctx);
-
                             if (response.statusCode == 200 &&
                                 data['success'] == true) {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -302,7 +315,9 @@ class _MainShellState extends State<MainShell> {
 
   // ── Settings ───────────────────────────────────────────────────────────────
   void _showSettings() {
-    Navigator.pop(context);
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      Navigator.pop(context);
+    }
     bool notifications = true;
     bool smsAlerts = false;
 
@@ -355,7 +370,6 @@ class _MainShellState extends State<MainShell> {
                 onChanged: (v) => setSheet(() => smsAlerts = v),
               ),
               const Divider(),
-              // ── Display Submenu ────────────────────────────────────
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
@@ -386,7 +400,6 @@ class _MainShellState extends State<MainShell> {
                   );
                 },
               ),
-              // ── Sensor Submenu ─────────────────────────────────────
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
@@ -412,7 +425,6 @@ class _MainShellState extends State<MainShell> {
                 },
               ),
               const Divider(),
-              // ── Language Selector ──────────────────────────────────────
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
@@ -475,7 +487,6 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  // ── Language Picker ────────────────────────────────────────────────────────
   void _showLanguagePicker() {
     showModalBottomSheet(
       context: context,
@@ -568,7 +579,6 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  // ── Drawer item ────────────────────────────────────────────────────────────
   Widget _drawerItem({
     required IconData icon,
     required Color iconColor,
@@ -609,6 +619,7 @@ class _MainShellState extends State<MainShell> {
     ];
 
     return Scaffold(
+      key: _scaffoldKey,
       appBar: AppBar(
         title: Row(
           children: [
@@ -633,7 +644,6 @@ class _MainShellState extends State<MainShell> {
         ],
       ),
 
-      // ── Drawer ────────────────────────────────────────────────────
       drawer: Drawer(
         child: SafeArea(
           child: Column(

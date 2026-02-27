@@ -6,6 +6,8 @@ import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/api_config.dart';
+import '../../../../core/services/hive/hive_service.dart';
+import '../../../../main.dart';
 
 import 'edit_profile_page.dart';
 import 'login_page.dart';
@@ -81,15 +83,36 @@ class _ProfilePageState extends State<ProfilePage> {
           if (fetchedPhoto != null) photoUrl = fetchedPhoto;
         });
 
-        // Update local cache
+        // Update both SharedPreferences and Hive cache
         await prefs.setString('user_name', name);
         await prefs.setString('user_email', email);
         await prefs.setString('user_phone', phone);
         await prefs.setString('user_gender', gender);
         await prefs.setString('user_dob', dob);
         if (photoUrl != null) await prefs.setString('photoUrl', photoUrl!);
+        await HiveService.cacheProfile({
+          'name': name,
+          'email': email,
+          'phone': phone,
+          'gender': gender,
+          'dob': dob,
+          'photoUrl': photoUrl ?? '',
+        });
       }
     } catch (e) {
+      // Fallback to Hive cache when offline
+      final cached = HiveService.getCachedProfile();
+      if (cached != null) {
+        setState(() {
+          name = cached['name'] ?? name;
+          email = cached['email'] ?? email;
+          phone = cached['phone'] ?? phone;
+          gender = cached['gender'] ?? gender;
+          dob = (cached['dob'] ?? dob).toString().split('T')[0];
+          final cachedPhoto = cached['photoUrl'] as String? ?? '';
+          if (cachedPhoto.isNotEmpty) photoUrl = cachedPhoto;
+        });
+      }
       debugPrint('Profile fetch error: $e');
     }
   }
@@ -530,7 +553,10 @@ class _ProfilePageState extends State<ProfilePage> {
                           MaterialPageRoute(
                             builder: (_) => const EditProfilePage(),
                           ),
-                        ).then((_) => _loadProfile()),
+                        ).then((_) async {
+                          await _loadProfile();
+                          appProvider.notify();
+                        }),
                       ),
                     ),
                     const SizedBox(height: 12),

@@ -65,4 +65,7 @@ class AppProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('auto_brightness', value);
   }
+
+  // ── Notify all listeners (e.g. after profile update) ─────────────────────
+  void notify() => notifyListeners();
 }

@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'bus_list_screen.dart';
+import '../../../auth/presentation/pages/main_shell.dart';
 
-// Model to carry all booking data to ticket screen
 class BookingData {
   final BusModel bus;
   final List<String> selectedSeats;
   final String passengerName;
   final String contact;
-  final String email; // passengerEmail from backend BookingSchema
+  final String email;
   final String boardingPoint;
-  final String bookingId; // "BK..." from backend
-  final String bookingDate; // travelDate from backend
+  final String bookingId;
+  final String bookingDate;
 
   BookingData({
     required this.bus,
@@ -43,13 +43,12 @@ class TicketScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0.5,
-        automaticallyImplyLeading: false, // no back button on ticket
+        automaticallyImplyLeading: false,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(18),
         child: Column(
           children: [
-            // ── Success banner ───────────────────────────────────────
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 20),
@@ -80,7 +79,6 @@ class TicketScreen extends StatelessWidget {
 
             const SizedBox(height: 18),
 
-            // ── Ticket card ──────────────────────────────────────────
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
@@ -96,7 +94,6 @@ class TicketScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  // ── Ticket header ──────────────────────────────────
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
@@ -148,7 +145,6 @@ class TicketScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        // Route with arrow
                         Row(
                           children: [
                             Text(
@@ -181,15 +177,12 @@ class TicketScreen extends StatelessWidget {
                     ),
                   ),
 
-                  // ── Dashed divider with circles ────────────────────
                   _DashedDivider(),
 
-                  // ── Ticket body ────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        // Time row
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -258,7 +251,6 @@ class TicketScreen extends StatelessWidget {
                         const Divider(),
                         const SizedBox(height: 12),
 
-                        // Details grid
                         _twoColRow(
                           left: _detailItem(
                             Icons.event_seat_outlined,
@@ -302,7 +294,6 @@ class TicketScreen extends StatelessWidget {
                         const Divider(),
                         const SizedBox(height: 12),
 
-                        // Booking ID
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -327,10 +318,8 @@ class TicketScreen extends StatelessWidget {
                     ),
                   ),
 
-                  // ── Dashed divider ─────────────────────────────────
                   _DashedDivider(),
 
-                  // ── Total price footer ─────────────────────────────
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Row(
@@ -381,8 +370,15 @@ class TicketScreen extends StatelessWidget {
                   ),
                 ),
                 onPressed: () {
-                  // Pop all screens back to HomePage
-                  Navigator.of(context).popUntil((route) => route.isFirst);
+                  print('🏠 Go to Home pressed');
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MainShell()),
+                    (route) {
+                      print('🗺️ Removing route: $route');
+                      return false;
+                    },
+                  );
                 },
               ),
             ),
@@ -413,8 +409,6 @@ class TicketScreen extends StatelessWidget {
                   ),
                 ),
                 onPressed: () {
-                  // Pop back to search screen (2 screens back from ticket:
-                  // ticket → passenger → seat → bus list → search)
                   int count = 0;
                   Navigator.of(context).popUntil((_) => count++ >= 4);
                 },
@@ -493,13 +487,11 @@ class TicketScreen extends StatelessWidget {
   }
 }
 
-// ── Dashed divider with notch circles ────────────────────────────────────────
 class _DashedDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        // Left notch
         Container(
           width: 16,
           height: 16,
@@ -530,7 +522,6 @@ class _DashedDivider extends StatelessWidget {
             },
           ),
         ),
-        // Right notch
         Container(
           width: 16,
           height: 16,

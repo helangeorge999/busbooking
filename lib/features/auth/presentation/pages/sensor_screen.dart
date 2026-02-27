@@ -22,10 +22,15 @@ class _SensorScreenState extends State<SensorScreen> {
   double _gyroX = 0, _gyroY = 0, _gyroZ = 0;
   StreamSubscription? _gyroSub;
 
+  // ── Magnetometer ───────────────────────────────────────────────────────────
+  double _magX = 0, _magY = 0, _magZ = 0;
+  StreamSubscription? _magSub;
+
   // ── Light Sensor ───────────────────────────────────────────────────────────
   int _lux = 0;
   bool _hasLightSensor = false;
   StreamSubscription? _lightSub;
+  Timer? _brightnessTimer;
 
   @override
   void initState() {
@@ -54,6 +59,16 @@ class _SensorScreenState extends State<SensorScreen> {
         });
     });
 
+    // Magnetometer
+    _magSub = magnetometerEventStream().listen((e) {
+      if (mounted)
+        setState(() {
+          _magX = e.x;
+          _magY = e.y;
+          _magZ = e.z;
+        });
+    });
+
     // Light Sensor
     try {
       final hasSensor = await LightSensor.hasSensor();
@@ -62,12 +77,23 @@ class _SensorScreenState extends State<SensorScreen> {
         _lightSub = LightSensor.luxStream().listen((lux) {
           if (mounted) {
             setState(() => _lux = lux);
-            // Auto brightness: switch theme based on ambient light
+            // Auto brightness: debounce 2 s before switching theme
             if (appProvider.autoBrightness) {
-              if (lux < 20 && appProvider.themeModeName != 'dark') {
-                appProvider.setThemeMode('dark');
-              } else if (lux > 100 && appProvider.themeModeName != 'light') {
-                appProvider.setThemeMode('light');
+              final needsDark =
+                  lux < 20 && appProvider.themeModeName != 'dark';
+              final needsLight =
+                  lux > 100 && appProvider.themeModeName != 'light';
+              if (needsDark || needsLight) {
+                _brightnessTimer?.cancel();
+                _brightnessTimer = Timer(const Duration(seconds: 2), () {
+                  if (mounted && appProvider.autoBrightness) {
+                    if (lux < 20) {
+                      appProvider.setThemeMode('dark');
+                    } else if (lux > 100) {
+                      appProvider.setThemeMode('light');
+                    }
+                  }
+                });
               }
             }
           }
@@ -82,11 +108,31 @@ class _SensorScreenState extends State<SensorScreen> {
   void dispose() {
     _accelSub?.cancel();
     _gyroSub?.cancel();
+    _magSub?.cancel();
     _lightSub?.cancel();
+    _brightnessTimer?.cancel();
     super.dispose();
   }
 
   String _fmt(double v) => v.toStringAsFixed(2);
+
+  /// Compass heading in degrees (0–360) derived from magnetometer X/Y
+  double get _compassDegrees {
+    final angle = atan2(_magY, _magX) * 180 / pi;
+    return (angle + 360) % 360;
+  }
+
+  String get _compassDirection {
+    final d = _compassDegrees;
+    if (d < 22.5 || d >= 337.5) return 'N';
+    if (d < 67.5) return 'NE';
+    if (d < 112.5) return 'E';
+    if (d < 157.5) return 'SE';
+    if (d < 202.5) return 'S';
+    if (d < 247.5) return 'SW';
+    if (d < 292.5) return 'W';
+    return 'NW';
+  }
 
   String get _lightLevel {
     if (_lux < 10) return 'Very Dark';
@@ -203,6 +249,76 @@ class _SensorScreenState extends State<SensorScreen> {
                       _ValueChip('X: ${_fmt(_gyroX)}', Colors.pink),
                       _ValueChip('Y: ${_fmt(_gyroY)}', Colors.teal),
                       _ValueChip('Z: ${_fmt(_gyroZ)}', Colors.amber),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 14),
+
+            // ── Magnetometer Card ────────────────────────────────────
+            _SensorCard(
+              cardColor: cardColor,
+              icon: Icons.explore,
+              iconColor: Colors.teal,
+              title: 'Magnetometer',
+              subtitle: 'Compass · heading: ${_compassDegrees.toStringAsFixed(1)}°',
+              child: Column(
+                children: [
+                  // Compass dial
+                  Center(
+                    child: SizedBox(
+                      width: 100,
+                      height: 100,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.teal.withValues(alpha: 0.4),
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                          Transform.rotate(
+                            angle: _compassDegrees * pi / 180,
+                            child: const Icon(
+                              Icons.navigation,
+                              color: Colors.teal,
+                              size: 48,
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 6,
+                            child: Text(
+                              _compassDirection,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.teal,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _SensorBar(label: 'X', value: _magX, maxVal: 100, color: Colors.teal),
+                  const SizedBox(height: 8),
+                  _SensorBar(label: 'Y', value: _magY, maxVal: 100, color: Colors.cyan),
+                  const SizedBox(height: 8),
+                  _SensorBar(label: 'Z', value: _magZ, maxVal: 100, color: Colors.green),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _ValueChip('X: ${_fmt(_magX)}', Colors.teal),
+                      _ValueChip('Y: ${_fmt(_magY)}', Colors.cyan),
+                      _ValueChip('Z: ${_fmt(_magZ)}', Colors.green),
                     ],
                   ),
                 ],

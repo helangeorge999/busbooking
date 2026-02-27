@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'package:busbooking/core/services/hive/hive_service.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../../../../core/api_config.dart';
 import 'seat_selection_screen.dart';
 
 // ── BusModel matches backend bus.model.ts exactly ────────────────────────────
@@ -71,11 +73,9 @@ class BusListScreen extends StatefulWidget {
 }
 
 class _BusListScreenState extends State<BusListScreen> {
-  // Backend base URL — matches index.ts PORT=5050, /api/buses mounted
-  static const String _baseUrl = 'http://10.0.2.2:5050/api/buses';
-
   List<BusModel> _buses = [];
   bool _isLoading = true;
+  bool _isOffline = false;
   String? _error;
 
   @override
@@ -90,15 +90,14 @@ class _BusListScreenState extends State<BusListScreen> {
     setState(() {
       _isLoading = true;
       _error = null;
+      _isOffline = false;
     });
 
     try {
-      // Build URI with query params matching BusController.search
-      final uri = Uri.parse('$_baseUrl/search').replace(
+      final uri = Uri.parse('${ApiConfig.busUrl}/search').replace(
         queryParameters: {
           if (widget.from.isNotEmpty) 'from': widget.from,
           if (widget.to.isNotEmpty) 'to': widget.to,
-          // date param available in query string for future filtering
           if (widget.date.isNotEmpty) 'date': widget.date,
         },
       );
@@ -110,21 +109,32 @@ class _BusListScreenState extends State<BusListScreen> {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode == 200 && body['success'] == true) {
-        // Response: { success: true, data: [...] }
         final List<dynamic> list = body['data'] ?? [];
+        final rawBuses = list.cast<Map<String, dynamic>>();
+        await HiveService.cacheBuses(widget.from, widget.to, rawBuses);
         setState(() {
-          _buses = list.map((e) => BusModel.fromJson(e)).toList();
+          _buses = rawBuses.map((e) => BusModel.fromJson(e)).toList();
           _isLoading = false;
         });
       } else {
-        setState(() {
-          _error = body['message'] ?? 'Failed to load buses';
-          _isLoading = false;
-        });
+        _loadFromCache(body['message'] ?? 'Failed to load buses');
       }
-    } catch (e) {
+    } catch (_) {
+      _loadFromCache('No internet connection');
+    }
+  }
+
+  void _loadFromCache(String originalError) {
+    final cached = HiveService.getCachedBuses(widget.from, widget.to);
+    if (cached != null && cached.isNotEmpty) {
       setState(() {
-        _error = 'Could not connect to server. Check your connection.';
+        _buses = cached.map((e) => BusModel.fromJson(e)).toList();
+        _isLoading = false;
+        _isOffline = true;
+      });
+    } else {
+      setState(() {
+        _error = originalError;
         _isLoading = false;
       });
     }
@@ -269,14 +279,50 @@ class _BusListScreenState extends State<BusListScreen> {
     }
 
     // ── Bus list ─────────────────────────────────────────────────────────────
-    return RefreshIndicator(
-      color: const Color(0xFF1565C0),
-      onRefresh: _fetchBuses,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(12),
-        itemCount: _buses.length,
-        itemBuilder: (_, i) => _BusCard(bus: _buses[i]),
-      ),
+    return Column(
+      children: [
+        if (_isOffline)
+          Container(
+            width: double.infinity,
+            color: Colors.orange.shade100,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                const Icon(Icons.wifi_off, size: 16, color: Colors.orange),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Showing cached results — you\'re offline',
+                    style: TextStyle(fontSize: 12, color: Colors.orange),
+                  ),
+                ),
+                TextButton(
+                  onPressed: _fetchBuses,
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text(
+                    'Retry',
+                    style: TextStyle(fontSize: 12, color: Colors.orange),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Expanded(
+          child: RefreshIndicator(
+            color: const Color(0xFF1565C0),
+            onRefresh: _fetchBuses,
+            child: ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: _buses.length,
+              itemBuilder: (_, i) => _BusCard(bus: _buses[i]),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'core/app_provider.dart';
 import 'core/app_translations.dart';
 import 'core/api_config.dart';
-import 'core/hive_service.dart';
+import 'package:busbooking/core/services/hive/hive_service.dart'; // ✅ single correct import
 import 'features/auth/presentation/pages/splash_page.dart';
 
 final AppProvider appProvider = AppProvider();

@@ -47,13 +47,55 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future<void> _save() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_name', nameCtrl.text);
-    await prefs.setString('user_email', emailCtrl.text);
-    await prefs.setString('user_phone', phoneCtrl.text);
-    await prefs.setString('user_gender', genderCtrl.text);
-    await prefs.setString('user_dob', dobCtrl.text);
-    Navigator.pop(context);
+    if (userId == null || userId!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not found. Please log in again.')),
+      );
+      return;
+    }
+
+    try {
+      final res = await http.patch(
+        Uri.parse('${ApiConfig.userUrl}/profile?userId=$userId'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null && token!.isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'name': nameCtrl.text.trim(),
+          'email': emailCtrl.text.trim(),
+          'phone': phoneCtrl.text.trim(),
+          'gender': genderCtrl.text.trim(),
+          'dob': dobCtrl.text.trim(),
+        }),
+      );
+
+      if (res.statusCode == 200) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_name', nameCtrl.text);
+        await prefs.setString('user_email', emailCtrl.text);
+        await prefs.setString('user_phone', phoneCtrl.text);
+        await prefs.setString('user_gender', genderCtrl.text);
+        await prefs.setString('user_dob', dobCtrl.text);
+        if (mounted) Navigator.pop(context);
+      } else {
+        final data = jsonDecode(res.body);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['message'] ?? 'Failed to update profile'),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Server error. Please try again.')),
+        );
+      }
+    }
   }
 
   Future<void> _pickImage() async {

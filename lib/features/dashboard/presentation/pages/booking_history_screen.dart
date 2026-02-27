@@ -1,9 +1,9 @@
 import 'dart:convert';
+import 'package:busbooking/core/services/hive/hive_service.dart'; // ✅ single correct import
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/api_config.dart';
-import '../../../../core/hive_service.dart';
 
 class BookingHistoryScreen extends StatefulWidget {
   const BookingHistoryScreen({super.key});
@@ -51,7 +51,6 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
         final List<dynamic> list = body['data'] ?? [];
         final bookings = list.cast<Map<String, dynamic>>();
 
-        // Cache bookings for offline use
         await HiveService.cacheBookings(bookings);
 
         setState(() {
@@ -59,11 +58,9 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
           _isLoading = false;
         });
       } else {
-        // Try loading from cache
         _loadFromCache(body['message'] ?? 'Failed to load bookings');
       }
     } catch (e) {
-      // Network error — try loading from cache
       _loadFromCache('No internet connection');
     }
   }
@@ -71,7 +68,6 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
   void _loadFromCache(String originalError) {
     if (HiveService.hasBookingsCache()) {
       final cached = HiveService.getCachedBookings();
-      final cacheTime = HiveService.getBookingsCacheTime();
       setState(() {
         _bookings = cached;
         _isLoading = false;
@@ -231,7 +227,6 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
 
     return Column(
       children: [
-        // Offline banner
         if (_isOffline)
           Container(
             width: double.infinity,

@@ -29,7 +29,7 @@ class _HomeContentState extends State<HomeContent> {
   }
 
   void _onAppChange() {
-    if (mounted) setState(() {});
+    if (mounted) _loadFirstName();
   }
 
   Future<void> _loadFirstName() async {

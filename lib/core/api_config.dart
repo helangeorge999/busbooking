@@ -2,7 +2,7 @@ import 'dart:io';
 
 class ApiConfig {
   // ✅ CHANGE THIS to your PC's IPv4 address (run `ipconfig` in terminal)
-  static const String _physicalDeviceIp = '192.168.1.146';
+  static const String _physicalDeviceIp = '192.168.18.113';
 
   // Emulator uses 10.0.2.2 to reach host machine's localhost
   static const String _emulatorIp = '10.0.2.2';
@@ -46,7 +46,7 @@ class ApiConfig {
     }
   }
 
-  static bool get isEmulator => _isEmulator ?? false;
+  static bool get isEmulator => _isEmulator ?? true;
 
   static String get baseUrl {
     final ip = isEmulator ? _emulatorIp : _physicalDeviceIp;
