@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'core/services/hive/hive_service.dart';
 import 'features/auth/presentation/pages/splash_page.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await HiveService.init();
   runApp(const MyApp());
 }
 

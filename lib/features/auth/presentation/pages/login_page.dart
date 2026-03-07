@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/services/hive/hive_service.dart';
+import 'home_page.dart';
+import 'signup_page.dart';
 
 class LoginPage extends StatelessWidget {
   LoginPage({super.key});
@@ -63,7 +66,27 @@ class LoginPage extends StatelessWidget {
                       ),
                     ),
                     onPressed: () {
-                      // TODO: Hive Login Logic
+                      final phone = emailController.text.trim();
+                      final password = passwordController.text;
+
+                      if (phone.isEmpty || password.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please enter phone and password')),
+                        );
+                        return;
+                      }
+
+                      final user = HiveService.login(phone, password);
+                      if (user != null) {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => const HomePage()),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Invalid phone number or password')),
+                        );
+                      }
                     },
                     child: const Text(
                       'Login',
@@ -97,7 +120,10 @@ class LoginPage extends StatelessWidget {
                       ),
                     ),
                     onPressed: () {
-                      // TODO: Navigate to Register Page
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SignupPage()),
+                      );
                     },
                     child: const Text('Create account'),
                   ),

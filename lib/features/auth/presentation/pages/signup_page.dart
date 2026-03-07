@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/services/hive/hive_service.dart';
+import '../../data/models/user_hive_model.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -102,7 +104,44 @@ class _SignupPageState extends State<SignupPage> {
                         ),
                       ),
                       onPressed: () {
-                        // TODO: Hive SignUp Logic
+                        final name = nameController.text.trim();
+                        final phone = phoneController.text.trim();
+                        final password = passwordController.text;
+                        final confirmPassword = confirmPasswordController.text;
+
+                        if (name.isEmpty || phone.isEmpty || password.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please fill all required fields')),
+                          );
+                          return;
+                        }
+
+                        if (password != confirmPassword) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Passwords do not match')),
+                          );
+                          return;
+                        }
+
+                        final user = UserHiveModel(
+                          name: name,
+                          phone: phone,
+                          password: password,
+                          dob: dobController.text.trim().isEmpty ? null : dobController.text.trim(),
+                          gender: selectedGender,
+                        );
+
+                        final error = HiveService.register(user);
+                        if (error != null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(error)),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Account created! Please login.')),
+                          );
+                          Navigator.pop(context);
+                        }
                       },
                       child: const Text(
                         'Sign Up',
