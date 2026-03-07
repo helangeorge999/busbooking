@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/api_config.dart';
 
 // ── AdminUsersScreen ──────────────────────────────────────────────────────────
 // GET    /api/admin/users       → all users (admin token)
@@ -17,7 +18,7 @@ class AdminUsersScreen extends StatefulWidget {
 }
 
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
-  static const String _url = 'http://10.0.2.2:5050/api/admin/users';
+  static String get _url => '${ApiConfig.apiUrl}/admin/users';
 
   List<Map<String, dynamic>> _users = [];
   List<Map<String, dynamic>> _filtered = [];
@@ -52,7 +53,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       _error = null;
     });
     try {
-      final res = await http.get(Uri.parse(_url), headers: await _headers());
+      final res = await http.get(Uri.parse(_url), headers: await _headers()).timeout(const Duration(seconds: 10));
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       if (res.statusCode == 200 && body['success'] == true) {
         final list = (body['data'] as List).cast<Map<String, dynamic>>();

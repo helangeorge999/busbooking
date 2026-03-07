@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/api_config.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -11,9 +12,10 @@ class AdminDashboardScreen extends StatefulWidget {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-  static const String _base = 'http://10.0.2.2:5050/api';
+  static String get _base => ApiConfig.apiUrl;
 
   bool _loading = true;
+  String? _error;
   int _totalBuses = 0;
   int _totalBookings = 0;
   int _confirmedBookings = 0;
@@ -42,12 +44,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         'Authorization': 'Bearer $token',
       };
 
-      // Fetch in parallel
+      // Fetch in parallel with timeout
       final results = await Future.wait([
         http.get(Uri.parse('$_base/buses'), headers: headers),
         http.get(Uri.parse('$_base/bookings'), headers: headers),
         http.get(Uri.parse('$_base/admin/users'), headers: headers),
-      ]);
+      ]).timeout(const Duration(seconds: 10));
 
       // Buses — GET /api/buses → { success, data: IBus[] }
       final busBody = jsonDecode(results[0].body);
@@ -89,7 +91,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _loading = false;
       });
     } catch (e) {
-      setState(() => _loading = false);
+      setState(() {
+        _error = 'Could not connect to server';
+        _loading = false;
+      });
     }
   }
 
@@ -98,6 +103,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (_loading) {
       return const Center(
         child: CircularProgressIndicator(color: Color(0xFF1565C0)),
+      );
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.wifi_off, size: 60, color: Colors.grey),
+            const SizedBox(height: 12),
+            Text(_error!, style: const TextStyle(color: Colors.grey)),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadAll,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1565C0),
+              ),
+              child: const Text('Retry', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
       );
     }
 
