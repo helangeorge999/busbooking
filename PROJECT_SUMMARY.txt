@@ -1,0 +1,316 @@
+COMPREHENSIVE BUS BOOKING FLUTTER PROJECT SUMMARY
+===================================================
+(Paste this into Claude web and ask it to write your report)
+
+PROJECT NAME: Bus Booking App (busbooking)
+PLATFORM: Flutter (Android/iOS)
+SDK: Dart ^3.10.0
+VERSION: 1.0.0+1
+
+=============================================
+1. ARCHITECTURE
+=============================================
+Clean Architecture with Repository Pattern, organized per feature:
+
+  feature/
+  ├── data/
+  │   ├── datasources/ (local, remote)
+  │   ├── models/ (data models with Hive annotations)
+  │   └── repositories/ (repository implementations)
+  ├── domain/
+  │   ├── entities/ (domain models)
+  │   ├── repositories/ (abstract repository interfaces)
+  │   └── usecases/ (business logic)
+  └── presentation/
+      ├── pages/ (screens)
+      ├── providers/ (Riverpod providers)
+      ├── view_model/ (state management)
+      └── widgets/ (UI components)
+
+=============================================
+2. PROJECT STRUCTURE
+=============================================
+lib/
+├── app/
+│   ├── routes/          - Route definitions
+│   └── theme/           - Theme and color configuration
+├── core/
+│   ├── api/             - API client and endpoints
+│   ├── config/          - Configuration files
+│   ├── constants/       - App constants, Hive table names
+│   ├── error/           - Custom exceptions and failures
+│   ├── extensions/      - Dart extensions
+│   ├── providers/       - SharedPreferences provider
+│   ├── services/        - Hive, connectivity, media, storage, sync services
+│   ├── usecases/        - Base usecase class
+│   ├── utils/           - Utility functions (snackbar)
+│   └── widgets/         - Common widgets (AppButton, AppTextField)
+├── features/
+│   ├── auth/            - Authentication (login, signup, forgot password, profile, sensors, settings)
+│   ├── admin/           - Admin panel (dashboard, buses CRUD, bookings, users)
+│   ├── dashboard/       - Bus booking core (search, bus list, seat selection, passenger details, ticket, history)
+│   ├── batch/           - Batch operations
+│   ├── item/            - Lost & Found items
+│   ├── onboarding/      - App introduction slides
+│   └── splash/          - Splash screen
+└── l10n/                - Localization files
+
+=============================================
+3. STATE MANAGEMENT
+=============================================
+- Primary: Flutter Riverpod (v3.2.0) - providers per feature
+- Secondary: ChangeNotifier for global state (AppProvider - theme, language, auto-brightness)
+- Persistent state: SharedPreferences
+- Local state: StatefulWidget for form/loading state
+
+=============================================
+4. ALL DEPENDENCIES
+=============================================
+| Package              | Version | Purpose                                        |
+|----------------------|---------|------------------------------------------------|
+| flutter_riverpod     | 3.2.0   | State management                               |
+| shared_preferences   | 2.1.1   | Persistent key-value storage (token, prefs)    |
+| http                 | 1.1.0   | HTTP client for REST API calls                 |
+| intl                 | 0.19.0  | Internationalization                           |
+| image_picker         | 1.1.0   | Pick images from camera/gallery                |
+| http_parser          | 4.1.2   | HTTP request parsing (multipart uploads)       |
+| sensors_plus         | 7.0.0   | Accelerometer, gyroscope, magnetometer         |
+| light_sensor         | 3.0.2   | Ambient light sensor                           |
+| device_info_plus     | 12.3.0  | Device information (emulator detection)        |
+| hive                 | 2.2.3   | NoSQL local database for offline caching       |
+| hive_flutter         | 1.1.0   | Hive Flutter integration                       |
+| path_provider        | 2.1.5   | File system path access                        |
+| pdf                  | 3.11.0  | PDF document generation                        |
+| printing             | 5.13.0  | PDF printing and sharing                       |
+| cupertino_icons      | 1.0.8   | iOS-style icons                                |
+
+Dev dependencies: flutter_lints (5.0.0), build_runner (2.11.1)
+
+=============================================
+5. DATA MODELS
+=============================================
+
+User Entity:
+  - id: String
+  - email: String
+  - username: String
+
+BusModel:
+  - id: String (MongoDB _id)
+  - name: String
+  - from: String (departure city)
+  - to: String (destination city)
+  - departure: String (departure time)
+  - arrival: String (arrival time)
+  - price: double
+  - totalSeats: int (typically 40)
+  - type: String (e.g., "AC", "Non-AC")
+  - rating: double
+
+BookingData:
+  - bus: BusModel
+  - selectedSeats: List<String>
+  - passengerName: String
+  - contact: String (phone)
+  - email: String
+  - boardingPoint: String
+  - bookingId: String
+  - bookingDate: String (YYYY-MM-DD)
+
+SeatModel:
+  - label: String (e.g., "A1")
+  - status: SeatStatus (booked, available, selected)
+
+LoginRequestModel:
+  - email: String
+  - password: String
+
+BatchHiveModel:
+  - Hive-persisted batch data (generated with build_runner)
+
+=============================================
+6. API / NETWORK LAYER
+=============================================
+
+Base URL: http://{ip}:5050/api
+- Emulator: 10.0.2.2:5050
+- Physical device: 192.168.1.152:5050
+- Smart detection via device_info_plus
+
+Auth Endpoints:
+  - POST /api/auth/login         - User login
+  - POST /api/auth/register      - User registration
+  - POST /api/auth/forgot-password - Request OTP
+  - POST /api/auth/reset-password  - Reset password with OTP
+
+Bus Endpoints:
+  - GET /api/buses               - All buses (admin)
+  - GET /api/buses/search?from=&to=&date= - Search buses
+  - GET /api/buses/{id}          - Bus details
+
+Booking Endpoints:
+  - POST /api/bookings           - Create booking
+  - GET /api/bookings            - All bookings (admin)
+  - GET /api/bookings/my-bookings - User's bookings
+  - GET /api/bookings/bus/{busId} - Bookings for a bus
+  - PATCH /api/bookings/{id}/cancel - Cancel booking
+
+User Endpoints:
+  - GET /api/user/profile?userId={id} - Get profile
+  - POST /api/user/upload-photo       - Upload photo (multipart)
+
+Admin Endpoints:
+  - POST /api/admin/auth/login   - Admin login
+  - GET /api/admin/stats         - Dashboard statistics
+
+HTTP Client: Uses `http` package, 10-second timeout, custom error handling.
+
+=============================================
+7. LOCAL STORAGE
+=============================================
+
+SharedPreferences (key-value):
+  - token, userId, user_name, user_email, user_phone, user_gender, user_dob
+  - photoUrl, role, isAdmin
+  - theme_mode, language, auto_brightness
+
+Hive (NoSQL offline cache):
+  - bookings_cache: Cached booking list
+  - profile_cache: Cached user profile
+  - buses_cache: Cached bus search results (1-hour expiry)
+  - seats_cache: Cached booked seats per bus
+  - Operations: cacheBookings(), getCachedBookings(), cacheBuses(), getCachedBuses(), etc.
+
+=============================================
+8. KEY SCREENS & FEATURES
+=============================================
+
+SPLASH & ONBOARDING:
+  - SplashPage: App startup, auto-redirect based on auth state
+  - OnboardingPage: Introduction slides for first-time users
+
+AUTHENTICATION:
+  - LoginPage: Email/password login with User/Admin toggle
+  - SignupPage: Registration with name, email, phone, DOB, gender, password
+  - ForgotPasswordPage: Two-step recovery (email -> OTP -> new password)
+  - ProfilePage: Display profile with photo upload (camera/gallery)
+  - EditProfilePage: Update personal details
+  - MainShell: Bottom navigation for authenticated users
+
+BUS BOOKING (Dashboard):
+  - SearchBusScreen: Search buses by from/to cities (20+ Nepali cities), date picker, route swap
+  - BusListScreen: Available buses with offline caching, departure time detection
+  - SeatSelectionScreen: Interactive 4-column seat grid (rows A-J), booked/available/selected states, legend
+  - PassengerDetailScreen: Collect name, phone, email, boarding point; trip summary; total calculation
+  - TicketScreen: Booking confirmation with PDF download/share
+  - BookingHistoryScreen: Past bookings, offline support, cancel functionality, status badges
+
+ADMIN PANEL:
+  - AdminDashboardScreen: Stats (total buses, users, bookings, revenue), recent bookings
+  - AdminBusesScreen: CRUD operations on buses
+  - AdminBookingsScreen: View/manage all bookings
+  - AdminUsersScreen: View registered users
+  - AdminShell: Admin navigation
+
+SETTINGS:
+  - DisplaySettingsScreen: Theme (light/dark/system), language, auto-brightness toggle
+
+SENSORS:
+  - SensorScreen: Real-time display of accelerometer, gyroscope, magnetometer, light sensor
+
+ITEMS (Lost & Found):
+  - MyItemsPage, ItemDetailPage, ReportItemPage
+
+=============================================
+9. AUTHENTICATION FLOW
+=============================================
+
+Login:
+  1. User enters email/password on LoginPage
+  2. Toggle between "User" and "Admin" mode
+  3. POST to /api/auth/login or /api/admin/auth/login
+  4. On success: store token + profile in SharedPreferences, navigate to MainShell or AdminShell
+  5. Offline fallback: if token exists, proceed to home with cached data
+
+Registration:
+  1. Fill form: name, email, phone, DOB, gender, password, confirm password
+  2. Client-side validation (email format, password match, all fields required)
+  3. POST to /api/auth/register
+  4. On success: show message, auto-navigate to LoginPage after 1 second
+
+Forgot Password:
+  1. Enter email -> POST /api/auth/forgot-password
+  2. Backend returns OTP (shown in dialog)
+  3. Enter OTP + new password -> POST /api/auth/reset-password
+  4. On success: return to LoginPage
+
+=============================================
+10. SENSOR / DEVICE FEATURES
+=============================================
+
+Accelerometer (sensors_plus):
+  - Measures X, Y, Z acceleration in m/s²
+  - Range: +/-20 m/s²
+
+Gyroscope (sensors_plus):
+  - Measures X, Y, Z rotation in rad/s
+  - Range: +/-10 rad/s
+
+Magnetometer (sensors_plus):
+  - Measures X, Y, Z magnetic field in uT
+  - Compass heading via atan2(magY, magX)
+  - Direction: N, NE, E, SE, S, SW, W, NW
+  - Range: +/-100 uT
+
+Light Sensor (light_sensor):
+  - Measures ambient light in lux
+  - Levels: Very Dark (<10), Dark (<50), Dim (<200), Normal (<1000), Bright (<10k), Very Bright
+  - Auto-Brightness: <20 lux -> dark mode, >100 lux -> light mode (2-sec debounce)
+  - Requires physical device (not available on emulator)
+
+All sensors stream real-time data via StreamSubscription, cancelled on dispose.
+
+=============================================
+11. PDF TICKET GENERATION
+=============================================
+
+Libraries: pdf (3.11.0) for building, printing (5.13.0) for sharing
+
+Generated PDF (A4) contains:
+  - Header: "BUS BOOKING TICKET", bus name, route (from -> to)
+  - Confirmation: "Booking Confirmed" banner
+  - Journey Details: departure time/city, arrival time/city
+  - Booking Info: seats, passengers, boarding point, travel date, name, contact, email, bus type
+  - Booking ID: unique identifier (BK{timestamp} or backend-provided)
+  - Total Amount: price x seats (bold display)
+  - Footer: "Thank you for booking with Bus Booking!"
+
+Output: In-memory PDF bytes shared via system share dialog (save, print, email).
+
+=============================================
+12. OFFLINE SUPPORT STRATEGY
+=============================================
+
+- All critical data cached in Hive
+- Seamless fallback when network unavailable
+- Offline banner shown when using cached data
+- Cache expiry: 1 hour for bus search results
+- Connectivity detection with graceful degradation
+
+=============================================
+13. KEY ARCHITECTURAL PATTERNS
+=============================================
+
+- Clean Architecture (data/domain/presentation layers)
+- Repository Pattern (abstract interfaces + implementations)
+- Data Source Abstraction (remote HTTP + local Hive/SharedPreferences)
+- Dependency Injection (constructor injection, Riverpod providers)
+- Offline-First with cache fallback
+- Error Handling with custom exceptions and try-catch
+
+=============================================
+CITIES SUPPORTED (Nepal)
+=============================================
+Kathmandu, Pokhara, Chitwan, Lumbini, Biratnagar, Birgunj, Dharan,
+Butwal, Hetauda, Janakpur, Nepalgunj, Bhairahawa, Dhangadhi,
+Mahendranagar, Itahari, Damak, Bharatpur, Tulsipur, Ghorahi, Tansen
