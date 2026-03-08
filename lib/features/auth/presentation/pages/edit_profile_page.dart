@@ -138,10 +138,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
               radius: 50,
               backgroundImage: _imageFile != null
                   ? FileImage(_imageFile!)
-                  : (photoUrl != null
+                  : (photoUrl != null && photoUrl!.isNotEmpty
                         ? NetworkImage(photoUrl!) as ImageProvider
                         : null),
-              child: photoUrl == null && _imageFile == null
+              child: (photoUrl == null || photoUrl!.isEmpty) && _imageFile == null
                   ? const Icon(Icons.person, size: 50)
                   : null,
             ),
