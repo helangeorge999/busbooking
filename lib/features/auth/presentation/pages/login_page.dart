@@ -2,19 +2,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/api_config.dart';
 import 'main_shell.dart';
 import 'signup_page.dart';
 import '../../../admin/presentation/pages/admin_shell.dart';
 
-// ── LoginPage ─────────────────────────────────────────────────────────────────
-// User login  → POST /api/auth/login    (AuthController.login)
-//               Response: { success, token, user: { id, name, email, phone, gender, dob, photoUrl, role } }
-//
-// Admin login → POST /api/admin/auth/login  (AdminAuthController.login)
-//               Response: { success, token, user: { id, name, email, role: "admin" } }
-//
-// Both save the JWT token to SharedPreferences under key 'token'
-// The token is then sent as Bearer token in all protected API calls
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -28,11 +20,6 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscure = true;
   bool _isLoading = false;
   bool _isAdmin = false;
-
-  // Endpoints from index.ts route mounting
-  static const String _userLoginUrl = 'http://10.0.2.2:5050/api/auth/login';
-  static const String _adminLoginUrl =
-      'http://10.0.2.2:5050/api/admin/auth/login';
 
   @override
   void dispose() {
@@ -50,7 +37,9 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      final url = _isAdmin ? _adminLoginUrl : _userLoginUrl;
+      final url = _isAdmin
+          ? '${ApiConfig.adminUrl}/auth/login'
+          : '${ApiConfig.authUrl}/login';
 
       final response = await http
           .post(
@@ -70,13 +59,7 @@ class _LoginPageState extends State<LoginPage> {
         final token = data['token'] as String;
 
         final prefs = await SharedPreferences.getInstance();
-
-        // Save JWT — used as Bearer token for all protected endpoints
         await prefs.setString('token', token);
-
-        // Save user fields from response
-        // User: id, name, email, phone, gender, dob, photoUrl, role
-        // Admin: id, name, email, role:"admin"
         await prefs.setString(
           'userId',
           user['id']?.toString() ?? user['_id']?.toString() ?? '',
@@ -86,7 +69,14 @@ class _LoginPageState extends State<LoginPage> {
         await prefs.setString('user_phone', user['phone'] ?? '');
         await prefs.setString('user_gender', user['gender'] ?? '');
         await prefs.setString('user_dob', user['dob'] ?? '');
-        await prefs.setString('photoUrl', user['photoUrl'] ?? '');
+
+        // Fix photo URL for current device
+        final rawPhoto = user['photoUrl'] ?? '';
+        final fixedPhoto = rawPhoto.isNotEmpty
+            ? ApiConfig.fixImageUrl(rawPhoto)
+            : '';
+        await prefs.setString('photoUrl', fixedPhoto);
+
         await prefs.setString('role', user['role'] ?? 'user');
         await prefs.setBool('isAdmin', _isAdmin);
 
@@ -128,8 +118,6 @@ class _LoginPageState extends State<LoginPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const SizedBox(height: 60),
-
-                // ── Logo ───────────────────────────────────────────────
                 Container(
                   width: 80,
                   height: 80,
@@ -157,10 +145,7 @@ class _LoginPageState extends State<LoginPage> {
                   _isAdmin ? 'Admin Portal' : 'Welcome back!',
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
-
                 const SizedBox(height: 32),
-
-                // ── User / Admin Toggle ─────────────────────────────────
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.grey[100],
@@ -184,10 +169,7 @@ class _LoginPageState extends State<LoginPage> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 28),
-
-                // ── Email ───────────────────────────────────────────────
                 TextField(
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
@@ -209,10 +191,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 14),
-
-                // ── Password ────────────────────────────────────────────
                 TextField(
                   controller: _passwordCtrl,
                   obscureText: _obscure,
@@ -243,7 +222,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
-
                 if (!_isAdmin) ...[
                   const SizedBox(height: 6),
                   Align(
@@ -261,8 +239,6 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ] else
                   const SizedBox(height: 16),
-
-                // ── Login Button ────────────────────────────────────────
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -293,10 +269,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                   ),
                 ),
-
                 const SizedBox(height: 28),
-
-                // ── Create account — users only ─────────────────────────
                 if (!_isAdmin) ...[
                   Text(
                     "Don't have an account?",
@@ -328,8 +301,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ],
-
-                // ── Admin warning note ──────────────────────────────────
                 if (_isAdmin) ...[
                   const SizedBox(height: 12),
                   Container(
@@ -360,7 +331,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ],
-
                 const SizedBox(height: 32),
               ],
             ),

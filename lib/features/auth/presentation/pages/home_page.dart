@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../main.dart';
+import '../../../../core/app_translations.dart';
 import '../../../dashboard/presentation/pages/search_bus_screen.dart';
 import '../../../dashboard/presentation/pages/booking_history_screen.dart';
 
-// ── HomeContent — NO Scaffold, NO AppBar — lives inside MainShell's Scaffold ─
 class HomeContent extends StatefulWidget {
   const HomeContent({super.key});
 
@@ -18,6 +19,17 @@ class _HomeContentState extends State<HomeContent> {
   void initState() {
     super.initState();
     _loadFirstName();
+    appProvider.addListener(_onAppChange);
+  }
+
+  @override
+  void dispose() {
+    appProvider.removeListener(_onAppChange);
+    super.dispose();
+  }
+
+  void _onAppChange() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadFirstName() async {
@@ -32,18 +44,18 @@ class _HomeContentState extends State<HomeContent> {
 
   String get _greeting {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
+    if (hour < 12) return Tr.get('good_morning');
+    if (hour < 17) return Tr.get('good_afternoon');
+    return Tr.get('good_evening');
   }
 
   @override
   Widget build(BuildContext context) {
     final bool isTablet = MediaQuery.of(context).size.width > 600;
+    final isDark = appProvider.isDarkMode;
 
-    // Just a plain scrollable body — Scaffold is in MainShell
     return Container(
-      color: Colors.grey[100],
+      color: isDark ? const Color(0xFF121212) : Colors.grey[100],
       child: Center(
         child: SizedBox(
           width: isTablet ? 700 : double.infinity,
@@ -75,7 +87,7 @@ class _HomeContentState extends State<HomeContent> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Hello, $firstName! 👋',
+                        '${Tr.get('hello')}, $firstName! 👋',
                         style: const TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.bold,
@@ -83,9 +95,9 @@ class _HomeContentState extends State<HomeContent> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Ready to book your next bus trip?',
-                        style: TextStyle(
+                      Text(
+                        Tr.get('ready_to_book'),
+                        style: const TextStyle(
                           fontSize: 14,
                           color: Colors.white70,
                           fontStyle: FontStyle.italic,
@@ -97,23 +109,23 @@ class _HomeContentState extends State<HomeContent> {
 
                 const SizedBox(height: 32),
 
-                const Text(
-                  'What would you like to do?',
+                Text(
+                  Tr.get('what_to_do'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
 
                 const SizedBox(height: 16),
 
-                // ── Book a Ticket ──────────────────────────────────
                 _ActionCard(
                   icon: Icons.confirmation_number_outlined,
                   iconColor: const Color(0xFF1565C0),
-                  title: 'Book a Ticket',
-                  subtitle: 'Search buses and reserve your seat',
+                  title: Tr.get('book_ticket'),
+                  subtitle: Tr.get('search_buses'),
+                  isDark: isDark,
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const SearchBusScreen()),
@@ -122,12 +134,12 @@ class _HomeContentState extends State<HomeContent> {
 
                 const SizedBox(height: 16),
 
-                // ── Booking History ────────────────────────────────
                 _ActionCard(
                   icon: Icons.history,
                   iconColor: Colors.orangeAccent,
-                  title: 'Booking History',
-                  subtitle: 'View your past and upcoming trips',
+                  title: Tr.get('booking_history'),
+                  subtitle: Tr.get('view_past_trips'),
+                  isDark: isDark,
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -138,33 +150,35 @@ class _HomeContentState extends State<HomeContent> {
 
                 const SizedBox(height: 32),
 
-                // ── Quick stats ────────────────────────────────────
                 Row(
                   children: [
                     Expanded(
                       child: _StatTile(
                         icon: Icons.route,
-                        label: 'Routes',
+                        label: Tr.get('routes'),
                         value: '12+',
                         color: Colors.orange,
+                        isDark: isDark,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _StatTile(
                         icon: Icons.directions_bus,
-                        label: 'Buses',
+                        label: Tr.get('buses'),
                         value: '30+',
                         color: const Color(0xFF1565C0),
+                        isDark: isDark,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _StatTile(
                         icon: Icons.star_outline,
-                        label: 'Rating',
+                        label: Tr.get('rating'),
                         value: '4.8',
                         color: Colors.amber,
+                        isDark: isDark,
                       ),
                     ),
                   ],
@@ -180,12 +194,12 @@ class _HomeContentState extends State<HomeContent> {
   }
 }
 
-// ── Action Card ───────────────────────────────────────────────────────────────
 class _ActionCard extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final String title;
   final String subtitle;
+  final bool isDark;
   final VoidCallback onTap;
 
   const _ActionCard({
@@ -193,6 +207,7 @@ class _ActionCard extends StatelessWidget {
     required this.iconColor,
     required this.title,
     required this.subtitle,
+    required this.isDark,
     required this.onTap,
   });
 
@@ -203,13 +218,13 @@ class _ActionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Colors.black12,
+              color: isDark ? Colors.black26 : Colors.black12,
               blurRadius: 8,
-              offset: Offset(0, 4),
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -231,9 +246,10 @@ class _ActionCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -252,18 +268,19 @@ class _ActionCard extends StatelessWidget {
   }
 }
 
-// ── Stat Tile ─────────────────────────────────────────────────────────────────
 class _StatTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
   final Color color;
+  final bool isDark;
 
   const _StatTile({
     required this.icon,
     required this.label,
     required this.value,
     required this.color,
+    required this.isDark,
   });
 
   @override
@@ -271,7 +288,7 @@ class _StatTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(

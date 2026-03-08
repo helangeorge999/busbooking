@@ -1,9 +1,16 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../main.dart';
+import '../../../../core/app_translations.dart';
+import '../../../../core/api_config.dart';
 import 'home_page.dart';
 import 'profile_page.dart';
 import 'edit_profile_page.dart';
 import 'login_page.dart';
+import 'sensor_screen.dart';
+import 'display_settings_screen.dart';
 import '../../../dashboard/presentation/pages/booking_history_screen.dart';
 
 class MainShell extends StatefulWidget {
@@ -23,6 +30,17 @@ class _MainShellState extends State<MainShell> {
   void initState() {
     super.initState();
     _loadUserData();
+    appProvider.addListener(_onAppChange);
+  }
+
+  @override
+  void dispose() {
+    appProvider.removeListener(_onAppChange);
+    super.dispose();
+  }
+
+  void _onAppChange() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadUserData() async {
@@ -38,39 +56,38 @@ class _MainShellState extends State<MainShell> {
     setState(() => _currentIndex = index);
   }
 
-  // ── App bar titles per tab ─────────────────────────────────────────────────
   String get _appBarTitle {
     switch (_currentIndex) {
       case 0:
-        return 'Home';
+        return Tr.get('home');
       case 1:
-        return 'Booking History';
+        return Tr.get('booking_history');
       default:
-        return 'Bus Booking';
+        return Tr.get('app_name');
     }
   }
 
   // ── Logout ─────────────────────────────────────────────────────────────────
   Future<void> _logout() async {
-    Navigator.pop(context); // close drawer first
+    Navigator.pop(context);
 
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
+        title: Text(Tr.get('sign_out')),
+        content: Text(Tr.get('sign_out_confirm')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(Tr.get('cancel')),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Sign Out',
-              style: TextStyle(color: Colors.white),
+            child: Text(
+              Tr.get('sign_out'),
+              style: const TextStyle(color: Colors.white),
             ),
           ),
         ],
@@ -79,7 +96,12 @@ class _MainShellState extends State<MainShell> {
 
     if (confirm == true) {
       final prefs = await SharedPreferences.getInstance();
+      // Save dark mode and language preferences before clearing
+      final isDark = prefs.getBool('dark_mode') ?? false;
+      final lang = prefs.getString('language') ?? 'en';
       await prefs.clear();
+      await prefs.setBool('dark_mode', isDark);
+      await prefs.setString('language', lang);
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
@@ -88,9 +110,9 @@ class _MainShellState extends State<MainShell> {
     }
   }
 
-  // ── Change Password bottom sheet ───────────────────────────────────────────
+  // ── Change Password ────────────────────────────────────────────────────────
   void _showChangePassword() {
-    Navigator.pop(context); // close drawer
+    Navigator.pop(context);
     final currentCtrl = TextEditingController();
     final newCtrl = TextEditingController();
     final confirmCtrl = TextEditingController();
@@ -131,41 +153,44 @@ class _MainShellState extends State<MainShell> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Change Password',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    Tr.get('change_password'),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 20),
                   _pwField(
                     ctrl: currentCtrl,
-                    label: 'Current Password',
+                    label: Tr.get('current_password'),
                     icon: Icons.lock_outline,
                     obscure: obscureCurrent,
                     toggle: () =>
                         setSheet(() => obscureCurrent = !obscureCurrent),
                     validator: (v) =>
-                        v!.isEmpty ? 'Enter current password' : null,
+                        v!.isEmpty ? Tr.get('enter_current') : null,
                   ),
                   const SizedBox(height: 12),
                   _pwField(
                     ctrl: newCtrl,
-                    label: 'New Password',
+                    label: Tr.get('new_password'),
                     icon: Icons.lock_open_outlined,
                     obscure: obscureNew,
                     toggle: () => setSheet(() => obscureNew = !obscureNew),
                     validator: (v) =>
-                        v!.length < 6 ? 'Minimum 6 characters' : null,
+                        v!.length < 6 ? Tr.get('min_6_chars') : null,
                   ),
                   const SizedBox(height: 12),
                   _pwField(
                     ctrl: confirmCtrl,
-                    label: 'Confirm New Password',
+                    label: Tr.get('confirm_password'),
                     icon: Icons.lock_person_outlined,
                     obscure: obscureConfirm,
                     toggle: () =>
                         setSheet(() => obscureConfirm = !obscureConfirm),
                     validator: (v) =>
-                        v != newCtrl.text ? 'Passwords do not match' : null,
+                        v != newCtrl.text ? Tr.get('passwords_mismatch') : null,
                   ),
                   const SizedBox(height: 24),
                   SizedBox(
@@ -178,20 +203,60 @@ class _MainShellState extends State<MainShell> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      onPressed: () {
+                      onPressed: () async {
                         if (formKey.currentState!.validate()) {
-                          Navigator.pop(ctx);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Password changed successfully!'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
+                          try {
+                            final prefs = await SharedPreferences.getInstance();
+                            final token = prefs.getString('token') ?? '';
+
+                            final response = await http.post(
+                              Uri.parse('${ApiConfig.userUrl}/change-password'),
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer $token',
+                              },
+                              body: jsonEncode({
+                                'currentPassword': currentCtrl.text,
+                                'newPassword': newCtrl.text,
+                              }),
+                            );
+
+                            final data = jsonDecode(response.body);
+                            Navigator.pop(ctx);
+
+                            if (response.statusCode == 200 &&
+                                data['success'] == true) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(Tr.get('password_changed')),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    data['message'] ??
+                                        'Failed to change password',
+                                  ),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(Tr.get('network_error')),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
                         }
                       },
-                      child: const Text(
-                        'Update Password',
-                        style: TextStyle(
+                      child: Text(
+                        Tr.get('update_password'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -235,12 +300,11 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  // ── Settings bottom sheet ──────────────────────────────────────────────────
+  // ── Settings ───────────────────────────────────────────────────────────────
   void _showSettings() {
-    Navigator.pop(context); // close drawer
+    Navigator.pop(context);
     bool notifications = true;
     bool smsAlerts = false;
-    bool darkMode = false;
 
     showModalBottomSheet(
       context: context,
@@ -266,36 +330,89 @@ class _MainShellState extends State<MainShell> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Settings',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Text(
+                Tr.get('settings'),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               _toggleTile(
                 icon: Icons.notifications_outlined,
                 color: Colors.orange,
-                title: 'Push Notifications',
-                subtitle: 'Get booking updates & alerts',
+                title: Tr.get('push_notifications'),
+                subtitle: Tr.get('notif_subtitle'),
                 value: notifications,
                 onChanged: (v) => setSheet(() => notifications = v),
               ),
               _toggleTile(
                 icon: Icons.sms_outlined,
                 color: Colors.green,
-                title: 'SMS Alerts',
-                subtitle: 'Receive booking confirmation via SMS',
+                title: Tr.get('sms_alerts'),
+                subtitle: Tr.get('sms_subtitle'),
                 value: smsAlerts,
                 onChanged: (v) => setSheet(() => smsAlerts = v),
               ),
-              _toggleTile(
-                icon: Icons.dark_mode_outlined,
-                color: Colors.indigo,
-                title: 'Dark Mode',
-                subtitle: 'Switch app appearance',
-                value: darkMode,
-                onChanged: (v) => setSheet(() => darkMode = v),
+              const Divider(),
+              // ── Display Submenu ────────────────────────────────────
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  backgroundColor: Colors.indigo.withOpacity(0.1),
+                  child: const Icon(
+                    Icons.palette_outlined,
+                    color: Colors.indigo,
+                    size: 20,
+                  ),
+                ),
+                title: Text(Tr.get('display')),
+                subtitle: Text(
+                  appProvider.themeModeName == 'dark'
+                      ? Tr.get('dark_mode')
+                      : appProvider.themeModeName == 'system'
+                      ? Tr.get('system_mode')
+                      : Tr.get('light_mode'),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                ),
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const DisplaySettingsScreen(),
+                    ),
+                  );
+                },
+              ),
+              // ── Sensor Submenu ─────────────────────────────────────
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  backgroundColor: Colors.orange.withOpacity(0.1),
+                  child: const Icon(
+                    Icons.sensors,
+                    color: Colors.orange,
+                    size: 20,
+                  ),
+                ),
+                title: Text(Tr.get('sensors')),
+                subtitle: const Text(
+                  'Accelerometer, Gyroscope, Light',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SensorScreen()),
+                  );
+                },
               ),
               const Divider(),
+              // ── Language Selector ──────────────────────────────────────
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
@@ -306,14 +423,23 @@ class _MainShellState extends State<MainShell> {
                     size: 20,
                   ),
                 ),
-                title: const Text('Language'),
+                title: Text(Tr.get('language')),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('English', style: TextStyle(color: Colors.grey[600])),
+                    Text(
+                      appProvider.language == 'ne'
+                          ? Tr.get('nepali')
+                          : Tr.get('english'),
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
                     const Icon(Icons.chevron_right, color: Colors.grey),
                   ],
                 ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showLanguagePicker();
+                },
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -325,7 +451,7 @@ class _MainShellState extends State<MainShell> {
                     size: 20,
                   ),
                 ),
-                title: const Text('Privacy Policy'),
+                title: Text(Tr.get('privacy_policy')),
                 trailing: const Icon(Icons.chevron_right, color: Colors.grey),
               ),
               ListTile(
@@ -338,14 +464,80 @@ class _MainShellState extends State<MainShell> {
                     size: 20,
                   ),
                 ),
-                title: const Text('About App'),
-                subtitle: const Text('Version 1.0.0'),
+                title: Text(Tr.get('about_app')),
+                subtitle: Text(Tr.get('version')),
                 trailing: const Icon(Icons.chevron_right, color: Colors.grey),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  // ── Language Picker ────────────────────────────────────────────────────────
+  void _showLanguagePicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Text(
+                Tr.get('select_language'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _languageOption(ctx, 'English', 'en', '🇺🇸'),
+              _languageOption(ctx, 'नेपाली', 'ne', '🇳🇵'),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _languageOption(
+    BuildContext ctx,
+    String label,
+    String code,
+    String flag,
+  ) {
+    final isSelected = appProvider.language == code;
+    return ListTile(
+      leading: Text(flag, style: const TextStyle(fontSize: 28)),
+      title: Text(
+        label,
+        style: TextStyle(
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          color: isSelected ? const Color(0xFF1565C0) : null,
+        ),
+      ),
+      trailing: isSelected
+          ? const Icon(Icons.check_circle, color: Color(0xFF1565C0))
+          : null,
+      onTap: () {
+        appProvider.setLanguage(code);
+        Navigator.pop(ctx);
+      },
     );
   }
 
@@ -376,7 +568,7 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  // ── Drawer item helper ─────────────────────────────────────────────────────
+  // ── Drawer item ────────────────────────────────────────────────────────────
   Widget _drawerItem({
     required IconData icon,
     required Color iconColor,
@@ -400,7 +592,9 @@ class _MainShellState extends State<MainShell> {
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w500,
-          color: titleColor ?? Colors.black87,
+          color:
+              titleColor ??
+              (appProvider.isDarkMode ? Colors.white : Colors.black87),
         ),
       ),
       trailing: Icon(Icons.chevron_right, color: Colors.grey[400], size: 18),
@@ -409,18 +603,13 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    // Pages for IndexedStack — NO Scaffold inside these widgets
     final List<Widget> pages = [
-      const HomeContent(), // Tab 0
-      const BookingHistoryScreen(), // Tab 1
+      const HomeContent(),
+      const BookingHistoryScreen(),
     ];
 
     return Scaffold(
-      // ── AppBar lives HERE in MainShell only ────────────────────────
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        foregroundColor: Colors.black,
         title: Row(
           children: [
             const Icon(
@@ -446,11 +635,9 @@ class _MainShellState extends State<MainShell> {
 
       // ── Drawer ────────────────────────────────────────────────────
       drawer: Drawer(
-        backgroundColor: Colors.white,
         child: SafeArea(
           child: Column(
             children: [
-              // Header
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
@@ -509,8 +696,6 @@ class _MainShellState extends State<MainShell> {
                   ],
                 ),
               ),
-
-              // Menu items
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -518,7 +703,7 @@ class _MainShellState extends State<MainShell> {
                     _drawerItem(
                       icon: Icons.person_outline,
                       iconColor: const Color(0xFF1565C0),
-                      title: 'View Profile',
+                      title: Tr.get('view_profile'),
                       onTap: () {
                         Navigator.pop(context);
                         Navigator.push(
@@ -532,7 +717,7 @@ class _MainShellState extends State<MainShell> {
                     _drawerItem(
                       icon: Icons.edit_outlined,
                       iconColor: Colors.teal,
-                      title: 'Edit Profile',
+                      title: Tr.get('edit_profile'),
                       onTap: () {
                         Navigator.pop(context);
                         Navigator.push(
@@ -546,19 +731,19 @@ class _MainShellState extends State<MainShell> {
                     _drawerItem(
                       icon: Icons.lock_outline,
                       iconColor: Colors.orange,
-                      title: 'Change Password',
+                      title: Tr.get('change_password'),
                       onTap: _showChangePassword,
                     ),
                     _drawerItem(
                       icon: Icons.settings_outlined,
                       iconColor: Colors.indigo,
-                      title: 'Settings',
+                      title: Tr.get('settings'),
                       onTap: _showSettings,
                     ),
                     _drawerItem(
                       icon: Icons.receipt_long_outlined,
                       iconColor: Colors.purple,
-                      title: 'Booking History',
+                      title: Tr.get('booking_history'),
                       onTap: () {
                         Navigator.pop(context);
                         setState(() => _currentIndex = 1);
@@ -567,11 +752,11 @@ class _MainShellState extends State<MainShell> {
                     _drawerItem(
                       icon: Icons.help_outline,
                       iconColor: Colors.green,
-                      title: 'Help & Support',
+                      title: Tr.get('help_support'),
                       onTap: () {
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Coming soon!')),
+                          SnackBar(content: Text(Tr.get('coming_soon'))),
                         );
                       },
                     ),
@@ -579,18 +764,17 @@ class _MainShellState extends State<MainShell> {
                     _drawerItem(
                       icon: Icons.logout,
                       iconColor: Colors.red,
-                      title: 'Sign Out',
+                      title: Tr.get('sign_out'),
                       titleColor: Colors.red,
                       onTap: _logout,
                     ),
                   ],
                 ),
               ),
-
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  'Bus Booking v1.0.0',
+                  '${Tr.get('app_name')} v1.0.0',
                   style: TextStyle(fontSize: 12, color: Colors.grey[400]),
                 ),
               ),
@@ -599,33 +783,30 @@ class _MainShellState extends State<MainShell> {
         ),
       ),
 
-      // ── Body ──────────────────────────────────────────────────────
       body: IndexedStack(index: _currentIndex, children: pages),
 
-      // ── Bottom Nav Bar ─────────────────────────────────────────────
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
         selectedItemColor: const Color(0xFF1565C0),
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
         elevation: 10,
         selectedLabelStyle: const TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: 12,
         ),
         unselectedLabelStyle: const TextStyle(fontSize: 12),
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
+            icon: const Icon(Icons.home_outlined),
+            activeIcon: const Icon(Icons.home),
+            label: Tr.get('home'),
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.receipt_long_outlined),
-            activeIcon: Icon(Icons.receipt_long),
-            label: 'Bookings',
+            icon: const Icon(Icons.receipt_long_outlined),
+            activeIcon: const Icon(Icons.receipt_long),
+            label: Tr.get('bookings'),
           ),
         ],
       ),
