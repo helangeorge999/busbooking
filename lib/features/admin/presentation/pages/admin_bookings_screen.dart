@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/api_config.dart';
 
 // ── AdminBookingsScreen ───────────────────────────────────────────────────────
 // GET   /api/bookings              → all bookings (admin only)
@@ -15,7 +16,7 @@ class AdminBookingsScreen extends StatefulWidget {
 }
 
 class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
-  static const String _base = 'http://10.0.2.2:5050/api/bookings';
+  static String get _base => ApiConfig.bookingUrl;
 
   List<Map<String, dynamic>> _all = [];
   List<Map<String, dynamic>> _filtered = [];

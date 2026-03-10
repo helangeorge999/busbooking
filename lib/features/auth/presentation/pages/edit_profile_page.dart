@@ -47,13 +47,57 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future<void> _save() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_name', nameCtrl.text);
-    await prefs.setString('user_email', emailCtrl.text);
-    await prefs.setString('user_phone', phoneCtrl.text);
-    await prefs.setString('user_gender', genderCtrl.text);
-    await prefs.setString('user_dob', dobCtrl.text);
-    Navigator.pop(context);
+    if (userId == null || token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Session expired. Please login again.')),
+      );
+      return;
+    }
+
+    try {
+      final res = await http.put(
+        Uri.parse('${ApiConfig.userUrl}/profile'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'userId': userId,
+          'name': nameCtrl.text,
+          'email': emailCtrl.text,
+          'phone': phoneCtrl.text,
+          'gender': genderCtrl.text,
+          'dob': dobCtrl.text,
+        }),
+      );
+
+      if (res.statusCode == 200) {
+        // Update local cache after successful server update
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_name', nameCtrl.text);
+        await prefs.setString('user_email', emailCtrl.text);
+        await prefs.setString('user_phone', phoneCtrl.text);
+        await prefs.setString('user_gender', genderCtrl.text);
+        await prefs.setString('user_dob', dobCtrl.text);
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully'), backgroundColor: Colors.green),
+        );
+        Navigator.pop(context);
+      } else {
+        final body = jsonDecode(res.body);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(body['message'] ?? 'Failed to update profile'), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Network error: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   Future<void> _pickImage() async {

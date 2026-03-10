@@ -19,7 +19,7 @@ class SplashPage extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.directions_bus, size: 80, color: Colors.blue),
+                Image.asset('assests/images/logo.png', width: 120, height: 120),
                 const SizedBox(height: 16),
 
                 const Text(

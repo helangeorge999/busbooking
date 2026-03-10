@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/api_config.dart';
 
 // ── BookingHistoryScreen ──────────────────────────────────────────────────────
 // Backend endpoint: GET /api/bookings/my-bookings  (requires Bearer token)
@@ -18,7 +19,7 @@ class BookingHistoryScreen extends StatefulWidget {
 }
 
 class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
-  static const String _url = 'http://10.0.2.2:5050/api/bookings/my-bookings';
+  static String get _url => '${ApiConfig.bookingUrl}/my-bookings';
 
   List<Map<String, dynamic>> _bookings = [];
   bool _isLoading = true;
@@ -104,7 +105,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
       final token = prefs.getString('token') ?? '';
 
       final response = await http.patch(
-        Uri.parse('http://10.0.2.2:5050/api/bookings/$mongoId/cancel'),
+        Uri.parse('${ApiConfig.bookingUrl}/$mongoId/cancel'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',

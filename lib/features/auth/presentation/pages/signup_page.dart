@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/api_config.dart';
 import '../../../../../core/constants/app_colors.dart';
 import 'login_page.dart';
 
@@ -24,7 +25,7 @@ class _SignupPageState extends State<SignupPage> {
   final TextEditingController confirmPasswordController =
       TextEditingController();
 
-  static const String baseUrl = "http://10.0.2.2:5050/api/auth/register";
+  static String get baseUrl => '${ApiConfig.authUrl}/register';
 
   Future<void> _selectDOB() async {
     DateTime? picked = await showDatePicker(

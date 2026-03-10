@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/api_config.dart';
 
 // ── AdminUsersScreen ──────────────────────────────────────────────────────────
 // GET    /api/admin/users       → all users (admin token)
@@ -17,7 +18,7 @@ class AdminUsersScreen extends StatefulWidget {
 }
 
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
-  static const String _url = 'http://10.0.2.2:5050/api/admin/users';
+  static String get _url => '${ApiConfig.adminUrl}/users';
 
   List<Map<String, dynamic>> _users = [];
   List<Map<String, dynamic>> _filtered = [];

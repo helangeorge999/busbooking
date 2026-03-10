@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../../../../core/api_config.dart';
 import 'seat_selection_screen.dart';
 
 // ── BusModel matches backend bus.model.ts exactly ────────────────────────────
@@ -72,7 +73,7 @@ class BusListScreen extends StatefulWidget {
 
 class _BusListScreenState extends State<BusListScreen> {
   // Backend base URL — matches index.ts PORT=5050, /api/buses mounted
-  static const String _baseUrl = 'http://10.0.2.2:5050/api/buses';
+  static String get _baseUrl => ApiConfig.busUrl;
 
   List<BusModel> _buses = [];
   bool _isLoading = true;

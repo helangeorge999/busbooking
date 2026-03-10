@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/api_config.dart';
 
 // ── AdminBusesScreen ──────────────────────────────────────────────────────────
 // GET    /api/buses           → list all buses
@@ -18,7 +19,7 @@ class AdminBusesScreen extends StatefulWidget {
 }
 
 class _AdminBusesScreenState extends State<AdminBusesScreen> {
-  static const String _url = 'http://10.0.2.2:5050/api/buses';
+  static String get _url => ApiConfig.busUrl;
 
   List<Map<String, dynamic>> _buses = [];
   bool _loading = true;
